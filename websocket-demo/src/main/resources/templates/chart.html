@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title>Dynamic chart</title>
+</head>
+<body>
+    <canvas id="line-chart" width="800" height="450"></canvas>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script th:src="@{/webjars/sockjs-client/1.5.1/sockjs.min.js}"></script>
+<script th:src="@{/webjars/stomp-websocket/2.3.4/stomp.min.js}"></script>
+<script>
+    const chart = new Chart(document.getElementById("line-chart"), {
+            type: 'line',
+            data: {
+                labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                datasets: [{
+                    data: [5, 7, 12, 15, 32, 20, 17, 25, 27, 44],
+                    label: "Some data",
+                    borderColor: "#3e95cd",
+                    fill: false
+                }]
+            },
+            options: {
+                title: {
+                    display: true,
+                    text: 'Example of line chart'
+                }
+            }
+        });
+
+        function addData(chart, label, data) {
+            chart.data.labels.push(label);
+            chart.data.datasets.forEach((dataset) => {
+                dataset.data.push(data);
+            });
+            chart.update();
+        }
+
+        let stompClient = null;
+
+        function connect() {
+            const socket = new SockJS('/websocket-connection');
+            stompClient = Stomp.over(socket);
+            stompClient.connect({}, (frame) => {
+                console.log("Connected " + frame);
+
+                stompClient.subscribe('/data_out/new_data', (payload) => {
+                    console.log("New data record " + payload);
+                    const newData = JSON.parse(payload.body);
+                    addData(chart, newData.time, newData.value);
+                })
+            })
+        }
+
+        connect();
+</script>
+</html>
