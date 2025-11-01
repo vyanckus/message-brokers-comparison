@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.github.vyanckus</groupId>
+    <groupId>com.vyanckus</groupId>
     <artifactId>message-brokers-comparison</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -16,6 +16,13 @@
         <module>kafka-producer</module>
         <module>kafka-consumer</module>
         <module>websocket-demo</module>
+        <module>shared-dto</module>
+        <module>broker-core</module>
+        <module>activemq-module</module>
+        <module>rabbitmq-module</module>
+        <module>kafka-module</module>
+        <module>websocket-module</module>
+        <module>demo-ap</module>
     </modules>
 
     <properties>

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${pageTitle}">Message Testing</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link th:href="@{/css/style.css}" rel="stylesheet">
+</head>
+<body>
+<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <i class="fas fa-exchange-alt me-2"></i>
+            Message Brokers Comparison
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="/messages">Messages</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/benchmark">Benchmark</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/monitoring">Monitoring</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/websocket-demo">WebSocket Demo</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/about">About</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5">
+                <i class="fas fa-paper-plane text-primary me-3"></i>
+                Message Testing
+            </h1>
+            <p class="lead text-muted">
+                Send and receive messages through different message brokers
+            </p>
+        </div>
+    </div>
+
+    <!-- Initialization Alert -->
+    <div th:unless="${initialized}" class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <h4 class="alert-heading">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Brokers Not Initialized
+                </h4>
+                <p class="mb-0">
+                    Message brokers are not initialized. Please initialize them before testing.
+                </p>
+                <button type="button" class="btn btn-warning mt-2" onclick="initializeBrokers()">
+                    <i class="fas fa-play me-1"></i>
+                    Initialize Brokers
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Send Message Form -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        Send Message
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="sendMessageForm">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="brokerType" class="form-label">Broker Type</label>
+                                <select class="form-select" id="brokerType" required>
+                                    <option value="">Select Broker...</option>
+                                    <option th:each="broker : ${allBrokers}"
+                                            th:value="${broker}"
+                                            th:text="${broker.displayName}"
+                                            th:disabled="${!brokersStatus.get(broker)}">
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="destination" class="form-label">Destination</label>
+                                <input type="text" class="form-control" id="destination"
+                                       th:value="${defaultDestination}"
+                                       placeholder="Queue or topic name" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="messageContent" class="form-label">Message</label>
+                                <input type="text" class="form-control" id="messageContent"
+                                       value="Hello from Message Brokers Comparison!"
+                                       placeholder="Enter your message" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary" id="sendMessageBtn">
+                                    <i class="fas fa-paper-plane me-1"></i>
+                                    Send Message
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearForm()">
+                                    <i class="fas fa-broom me-1"></i>
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h5 class="mb-3">
+                <i class="fas fa-bolt me-2"></i>
+                Quick Send Examples
+            </h5>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-2">
+            <button class="btn btn-outline-primary w-100" onclick="quickSend('ACTIVEMQ', 'Test message to ActiveMQ')">
+                <i class="fas fa-server me-1"></i>
+                ActiveMQ Test
+            </button>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-2">
+            <button class="btn btn-outline-success w-100" onclick="quickSend('RABBITMQ', 'Test message to RabbitMQ')">
+                <i class="fas fa-play-circle me-1"></i>
+                RabbitMQ Test
+            </button>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-2">
+            <button class="btn btn-outline-info w-100" onclick="quickSend('KAFKA', 'Test message to Kafka')">
+                <i class="fas fa-stream me-1"></i>
+                Kafka Test
+            </button>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-2">
+            <button class="btn btn-outline-warning w-100" onclick="quickSend('WEBSOCKET', 'Test message via WebSocket')">
+                <i class="fas fa-broadcast-tower me-1"></i>
+                WebSocket Test
+            </button>
+        </div>
+    </div>
+
+    <!-- Subscription Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bell me-2"></i>
+                        Message Subscriptions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="subscribeBroker" class="form-label">Subscribe to Broker</label>
+                            <div class="input-group">
+                                <select class="form-select" id="subscribeBroker">
+                                    <option value="">Select Broker...</option>
+                                    <option th:each="broker : ${allBrokers}"
+                                            th:value="${broker}"
+                                            th:text="${broker.displayName}"
+                                            th:disabled="${!brokersStatus.get(broker)}">
+                                    </option>
+                                </select>
+                                <input type="text" class="form-control" id="subscribeDestination"
+                                       th:value="${defaultDestination}"
+                                       placeholder="Destination">
+                                <button class="btn btn-success" type="button" onclick="subscribeToBroker()">
+                                    <i class="fas fa-bell me-1"></i>
+                                    Subscribe
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Active Subscriptions</label>
+                            <div id="subscriptionsList" class="border rounded p-2 bg-light" style="min-height: 50px;">
+                                <small class="text-muted">No active subscriptions</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message History -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Message History
+                    </h5>
+                    <button class="btn btn-sm btn-outline-danger" onclick="clearMessageHistory()">
+                        <i class="fas fa-trash me-1"></i>
+                        Clear History
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Broker</th>
+                                <th>Destination</th>
+                                <th>Message</th>
+                                <th>Status</th>
+                            </tr>
+                            </thead>
+                            <tbody id="messageHistoryTable">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">
+                                    No messages yet. Send a message to see history.
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted" id="historyCount">Showing 0 messages</small>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshMessageHistory()">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="bg-dark text-light mt-5 py-4">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Message Brokers Comparison</h5>
+                <p class="mb-0">A demonstration project comparing different message brokers</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <a href="/about" class="text-light me-3">About</a>
+                <a href="/health" class="text-light">Health</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/app.js}"></script>
+<script th:src="@{/js/messages.js}"></script>
+</body>
+</html>

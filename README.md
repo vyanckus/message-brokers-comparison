@@ -3,7 +3,7 @@
 ![Java](https://img.shields.io/badge/Java-19-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-brightgreen)
 ![Docker](https://img.shields.io/badge/Docker-Enabled-blue)
-![License](https://img.shields.io/badge/License-MIT-green)
+
 
 Комплексная демонстрация трех основных брокеров сообщений (JMS/ActiveMQ, RabbitMQ, Apache Kafka) с визуализацией в реальном времени через WebSocket. Этот проект показывает различные паттерны messaging и их практическую реализацию в enterprise-приложениях.
 
