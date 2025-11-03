@@ -8,11 +8,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -253,7 +253,7 @@ public class WebController {
      * @param brokerType тип брокера
      * @return описание брокера
      */
-    private String getBrokerDescription(BrokersType brokerType) {
+    public String getBrokerDescription(BrokersType brokerType) {
         return switch (brokerType) {
             case ACTIVEMQ -> "Apache ActiveMQ - powerful open source message broker with JMS support";
             case RABBITMQ -> "RabbitMQ - most widely deployed open source message broker with AMQP protocol";

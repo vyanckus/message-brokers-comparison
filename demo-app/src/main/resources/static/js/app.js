@@ -1,5 +1,3 @@
-// Common JavaScript functions for the application
-
 class MessageBrokersApp {
     constructor() {
         this.baseUrl = '/api';

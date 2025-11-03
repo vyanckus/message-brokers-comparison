@@ -1,0 +1,50 @@
+.status-card {
+    transition: all 0.3s ease;
+}
+.status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.broker-active {
+    border-left: 4px solid #28a745;
+}
+.broker-inactive {
+    border-left: 4px solid #dc3545;
+}
+.broker-connecting {
+    border-left: 4px solid #ffc107;
+}
+.metric-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+.message-log {
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+.log-entry {
+    border-left: 3px solid transparent;
+    padding: 2px 8px;
+    margin: 1px 0;
+}
+.log-info {
+    border-left-color: #17a2b8;
+    background-color: #f8f9fa;
+}
+.log-warn {
+    border-left-color: #ffc107;
+    background-color: #fff3cd;
+}
+.log-error {
+    border-left-color: #dc3545;
+    background-color: #f8d7da;
+}
+.log-success {
+    border-left-color: #28a745;
+    background-color: #d4edda;
+}
+.system-health {
+    font-size: 0.85em;
+}

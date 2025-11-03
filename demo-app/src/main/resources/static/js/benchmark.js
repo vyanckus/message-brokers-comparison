@@ -47,9 +47,9 @@ class BenchmarkPage {
         const runBtn = document.getElementById('runBenchmarkBtn');
 
         if (isAsync) {
-            runBtn.innerHTML = '<i class="fas fa-play me-1"></i>Start Async Benchmark';
+            runBtn.innerHTML = '<i class="fas fa-play me-1"></i>Запустить асинхронный тест';
         } else {
-            runBtn.innerHTML = '<i class="fas fa-play me-1"></i>Run Benchmark';
+            runBtn.innerHTML = '<i class="fas fa-play me-1"></i>Запустить тест';
         }
     }
 
@@ -58,7 +58,7 @@ class BenchmarkPage {
 
         const selectedBrokers = this.getSelectedBrokers();
         if (selectedBrokers.length === 0) {
-            window.app.showError('Please select at least one broker to test');
+            window.app.showError('Пожалуйста, выберите хотя бы один брокер для тестирования');
             return;
         }
 
@@ -76,7 +76,7 @@ class BenchmarkPage {
         const originalText = runBtn.innerHTML;
 
         try {
-            runBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Running...';
+            runBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Выполняется...';
             runBtn.disabled = true;
 
             let response;
@@ -88,19 +88,19 @@ class BenchmarkPage {
 
             if (response.status === 'SUCCESS') {
                 if (isAsync) {
-                    window.app.showSuccess(`Async benchmark started! ID: ${response.benchmarkId}`);
+                    window.app.showSuccess(`Асинхронный тест запущен! ID: ${response.benchmarkId}`);
                     this.loadActiveBenchmarks();
                 } else {
-                    window.app.showSuccess(`Benchmark completed! Tested ${response.totalBrokersTested} brokers`);
+                    window.app.showSuccess(`Тест завершен! Протестировано ${response.totalBrokersTested} брокеров`);
                     this.displayResults(response.results);
                 }
             } else {
-                window.app.showError('Benchmark failed: ' + response.message);
+                window.app.showError('Тест не удался: ' + response.message);
             }
 
         } catch (error) {
             console.error('Error running benchmark:', error);
-            window.app.showError('Failed to run benchmark: ' + error.message);
+            window.app.showError('Не удалось запустить тест: ' + error.message);
         } finally {
             runBtn.innerHTML = originalText;
             runBtn.disabled = false;
@@ -159,8 +159,8 @@ class BenchmarkPage {
         let html = '';
         this.activeBenchmarks.forEach((isRunning, benchmarkId) => {
             const statusBadge = isRunning
-                ? '<span class="badge bg-warning"><i class="fas fa-spinner fa-spin me-1"></i>Running</span>'
-                : '<span class="badge bg-secondary"><i class="fas fa-check me-1"></i>Completed</span>';
+                ? '<span class="badge bg-warning"><i class="fas fa-spinner fa-spin me-1"></i>Выполняется</span>'
+                : '<span class="badge bg-secondary"><i class="fas fa-check me-1"></i>Завершен</span>';
 
             html += `
                 <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
@@ -170,7 +170,7 @@ class BenchmarkPage {
                     </div>
                     <button class="btn btn-sm btn-outline-danger" onclick="benchmarkPage.stopBenchmark('${benchmarkId}')">
                         <i class="fas fa-stop me-1"></i>
-                        Stop
+                        Остановить
                     </button>
                 </div>
             `;
@@ -186,12 +186,12 @@ class BenchmarkPage {
             });
 
             if (response.status === 'SUCCESS') {
-                window.app.showSuccess(`Benchmark ${response.stopped ? 'stopped' : 'could not be stopped'}`);
+                window.app.showSuccess(`Тест ${response.stopped ? 'остановлен' : 'не удалось остановить'}`);
                 this.loadActiveBenchmarks();
             }
         } catch (error) {
             console.error('Error stopping benchmark:', error);
-            window.app.showError('Failed to stop benchmark: ' + error.message);
+            window.app.showError('Не удалось остановить тест: ' + error.message);
         }
     }
 
@@ -202,12 +202,12 @@ class BenchmarkPage {
             });
 
             if (response.status === 'SUCCESS') {
-                window.app.showSuccess('All benchmarks stopped');
+                window.app.showSuccess('Все тесты остановлены');
                 this.loadActiveBenchmarks();
             }
         } catch (error) {
             console.error('Error stopping all benchmarks:', error);
-            window.app.showError('Failed to stop benchmarks: ' + error.message);
+            window.app.showError('Не удалось остановить тесты: ' + error.message);
         }
     }
 
@@ -390,14 +390,14 @@ class BenchmarkPage {
         if (!result) return;
 
         const details = `
-Broker: ${result.brokerType}
-Status: ${result.status}
-Total Messages: ${window.app.formatNumber(result.totalMessages)}
-Successful: ${window.app.formatNumber(result.successfulMessages)}
-Failed: ${window.app.formatNumber(result.totalMessages - result.successfulMessages)}
-Total Time: ${(result.totalTimeMs / 1000).toFixed(2)} seconds
-Throughput: ${result.messagesPerSecond.toFixed(2)} messages/second
-Success Rate: ${((result.successfulMessages / result.totalMessages) * 100).toFixed(1)}%
+Брокер: ${result.brokerType}
+Статус: ${result.status}
+Всего сообщений: ${window.app.formatNumber(result.totalMessages)}
+Успешно: ${window.app.formatNumber(result.successfulMessages)}
+Ошибок: ${window.app.formatNumber(result.totalMessages - result.successfulMessages)}
+Общее время: ${(result.totalTimeMs / 1000).toFixed(2)} секунд
+Пропускная способность: ${result.messagesPerSecond.toFixed(2)} сообщений/секунду
+Успешность: ${((result.successfulMessages / result.totalMessages) * 100).toFixed(1)}%
         `.trim();
 
         alert(details);
@@ -409,14 +409,14 @@ function initializeBrokers() {
     window.app.apiCall('/messages/initialize', { method: 'POST' })
         .then(data => {
             if (data.status === 'SUCCESS') {
-                window.app.showSuccess('Brokers initialized successfully!');
+                window.app.showSuccess('Брокеры успешно инициализированы!');
                 setTimeout(() => location.reload(), 1000);
             } else {
-                window.app.showError('Failed to initialize brokers: ' + data.message);
+                window.app.showError('Не удалось инициализировать брокеры: ' + data.message);
             }
         })
         .catch(error => {
-            window.app.showError('Error initializing brokers: ' + error.message);
+            window.app.showError('Ошибка инициализации брокеров: ' + error.message);
         });
 }
 
@@ -448,19 +448,19 @@ function stopAllBenchmarks() {
 }
 
 function refreshResults() {
-    window.app.showSuccess('Results refreshed');
+    window.app.showSuccess('Результаты обновлены');
     // In a real app, this would reload results from server
 }
 
 function clearResults() {
-    if (confirm('Are you sure you want to clear all benchmark results?')) {
+    if (confirm('Вы уверены, что хотите очистить все результаты тестирования?')) {
         if (window.benchmarkPage) {
             window.benchmarkPage.benchmarkResults = [];
             window.benchmarkPage.updateResultsTable();
             window.benchmarkPage.updateResultsSummary();
             document.getElementById('chartsSection').style.display = 'none';
         }
-        window.app.showSuccess('Results cleared');
+        window.app.showSuccess('Результаты очищены');
     }
 }
 

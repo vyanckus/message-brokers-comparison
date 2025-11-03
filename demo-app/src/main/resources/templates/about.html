@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>О проекте - Сравнение брокеров сообщений</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link th:href="@{/css/about.css}" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <i class="fas fa-info-circle"></i> О проекте
+        </a>
+        <div class="navbar-nav">
+            <a class="nav-link" href="/">Главная</a>
+            <a class="nav-link" href="/messages">Сообщения</a>
+            <a class="nav-link" href="/benchmark">Тестирование</a>
+            <a class="nav-link" href="/monitoring">Мониторинг</a>
+            <a class="nav-link" href="/websocket-demo">WebSocket Демо</a>
+            <a class="nav-link active" href="/about">О проекте</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <!-- Обзор проекта -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="hero-section text-center">
+                <h1 class="display-4 mb-3">Сравнение брокеров сообщений</h1>
+                <p class="lead">Комплексная демонстрационная и тестовая платформа для современных брокеров сообщений</p>
+                <div class="tech-stack mt-4">
+                    <span class="tech-badge java">Java 19</span>
+                    <span class="tech-badge spring">Spring Boot</span>
+                    <span class="tech-badge maven">Maven</span>
+                    <span class="tech-badge docker">Docker</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Возможности -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center mb-4">Возможности проекта</h2>
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card text-center">
+                        <div class="feature-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <h4>Множество брокеров</h4>
+                        <p>Поддержка ActiveMQ, RabbitMQ, Kafka и WebSocket с унифицированным API</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card text-center">
+                        <div class="feature-icon">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <h4>Тестирование производительности</h4>
+                        <p>Комплексные инструменты для сравнения пропускной способности и задержек</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card text-center">
+                        <div class="feature-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h4>Мониторинг в реальном времени</h4>
+                        <p>Живая панель мониторинга с проверками здоровья и метриками</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Архитектура -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-sitemap"></i> Архитектура системы</h3>
+                </div>
+                <div class="card-body">
+                    <div class="architecture-diagram">
+                        <div class="arch-layer">
+                            <div class="arch-title">Уровень представления</div>
+                            <div class="arch-components">
+                                <div class="arch-component web">Веб-интерфейс</div>
+                                <div class="arch-component api">REST API</div>
+                            </div>
+                        </div>
+                        <div class="arch-arrow">↓</div>
+                        <div class="arch-layer">
+                            <div class="arch-title">Бизнес-уровень</div>
+                            <div class="arch-components">
+                                <div class="arch-component service">Сервис сообщений</div>
+                                <div class="arch-component service">Сервис тестирования</div>
+                            </div>
+                        </div>
+                        <div class="arch-arrow">↓</div>
+                        <div class="arch-layer">
+                            <div class="arch-title">Уровень интеграции</div>
+                            <div class="arch-components">
+                                <div class="arch-component broker activemq">ActiveMQ</div>
+                                <div class="arch-component broker rabbitmq">RabbitMQ</div>
+                                <div class="arch-component broker kafka">Kafka</div>
+                                <div class="arch-component broker websocket">WebSocket</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Сравнение брокеров -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center mb-4">Поддерживаемые брокеры сообщений</h2>
+            <div class="table-responsive">
+                <table class="table table-striped comparison-table">
+                    <thead class="table-dark">
+                    <tr>
+                        <th>Брокер</th>
+                        <th>Протокол</th>
+                        <th>Сценарии использования</th>
+                        <th>Производительность</th>
+                        <th>Возможности</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>ActiveMQ</strong></td>
+                        <td>JMS, AMQP, MQTT</td>
+                        <td>Корпоративная передача сообщений, JMS приложения</td>
+                        <td>Средняя</td>
+                        <td>Сохранение, транзакции, кластеризация</td>
+                    </tr>
+                    <tr>
+                        <td><strong>RabbitMQ</strong></td>
+                        <td>AMQP 0-9-1</td>
+                        <td>Сложная маршрутизация, рабочие очереди</td>
+                        <td>Высокая</td>
+                        <td>Гибкая маршрутизация, надежность, UI управление</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Kafka</strong></td>
+                        <td>Протокол Kafka</td>
+                        <td>Потоковая обработка, Event Sourcing</td>
+                        <td>Очень высокая</td>
+                        <td>Высокая пропускная способность, масштабируемость, надежность</td>
+                    </tr>
+                    <tr>
+                        <td><strong>WebSocket</strong></td>
+                        <td>WebSocket, STOMP</td>
+                        <td>Веб-приложения реального времени</td>
+                        <td>Низкая задержка</td>
+                        <td>Двусторонняя связь, реальное время, поддержка браузеров</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Технологический стек -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h3 class="mb-0"><i class="fas fa-cogs"></i> Технологический стек</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Backend технологии</h5>
+                            <ul class="tech-list">
+                                <li><i class="fas fa-check text-success"></i> Java 19</li>
+                                <li><i class="fas fa-check text-success"></i> Spring Boot 3.x</li>
+                                <li><i class="fas fa-check text-success"></i> Maven</li>
+                                <li><i class="fas fa-check text-success"></i> Spring Web MVC</li>
+                                <li><i class="fas fa-check text-success"></i> Spring WebSocket</li>
+                                <li><i class="fas fa-check text-success"></i> Thymeleaf</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Брокеры сообщений</h5>
+                            <ul class="tech-list">
+                                <li><i class="fas fa-check text-success"></i> Apache ActiveMQ</li>
+                                <li><i class="fas fa-check text-success"></i> RabbitMQ</li>
+                                <li><i class="fas fa-check text-success"></i> Apache Kafka</li>
+                                <li><i class="fas fa-check text-success"></i> WebSocket/STOMP</li>
+                                <li><i class="fas fa-check text-success"></i> JMS API</li>
+                                <li><i class="fas fa-check text-success"></i> AMQP протокол</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Информация о проекте -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-book"></i> Цель проекта</h5>
+                </div>
+                <div class="card-body">
+                    <p>Этот проект демонстрирует реализацию и сравнение различных брокеров сообщений в едином Spring Boot приложении.</p>
+                    <p><strong>Цели обучения:</strong></p>
+                    <ul>
+                        <li>Понимание различных паттернов обмена сообщениями</li>
+                        <li>Сравнение характеристик производительности брокеров</li>
+                        <li>Изучение интеграции Spring Boot с системами обмена сообщениями</li>
+                        <li>Реализация готовых к production мониторинга и проверок здоровья</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-graduation-cap"></i> Портфолио проект</h5>
+                </div>
+                <div class="card-body">
+                    <p>Этот проект демонстрирует современные практики Java разработки и паттерны корпоративной интеграции.</p>
+                    <p><strong>Продемонстрированные навыки:</strong></p>
+                    <ul>
+                        <li>Микросервисная архитектура</li>
+                        <li>Интеграция брокеров сообщений</li>
+                        <li>Проектирование REST API</li>
+                        <li>Веб-приложения реального времени</li>
+                        <li>Тестирование производительности</li>
+                        <li>Production мониторинг</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="bg-dark text-light py-4 mt-5">
+    <div class="container text-center">
+        <p class="mb-0">Проект "Сравнение брокеров сообщений" &copy; 2025</p>
+        <p class="text-muted">Образовательный проект для демонстрации технологий брокеров сообщений</p>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

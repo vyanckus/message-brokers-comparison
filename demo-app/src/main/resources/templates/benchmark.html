@@ -1,20 +1,21 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${pageTitle}">Performance Benchmark</title>
+    <title th:text="${pageTitle}">Тестирование производительности</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link th:href="@{/css/style.css}" rel="stylesheet">
+    <link th:href="@{/css/benchmark.css}" rel="stylesheet">
 </head>
 <body>
-<!-- Navigation -->
+<!-- Навигация -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container">
         <a class="navbar-brand" href="/">
             <i class="fas fa-exchange-alt me-2"></i>
-            Message Brokers Comparison
+            Сравнение брокеров сообщений
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
@@ -22,78 +23,78 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="/">Home</a>
+                    <a class="nav-link" href="/">Главная</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/messages">Messages</a>
+                    <a class="nav-link" href="/messages">Сообщения</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active" href="/benchmark">Benchmark</a>
+                    <a class="nav-link active" href="/benchmark">Тестирование</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/monitoring">Monitoring</a>
+                    <a class="nav-link" href="/monitoring">Мониторинг</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/websocket-demo">WebSocket Demo</a>
+                    <a class="nav-link" href="/websocket-demo">WebSocket Демо</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/about">About</a>
+                    <a class="nav-link" href="/about">О проекте</a>
                 </li>
             </ul>
         </div>
     </div>
 </nav>
 
-<!-- Main Content -->
+<!-- Основной контент -->
 <div class="container mt-4">
-    <!-- Header -->
+    <!-- Заголовок -->
     <div class="row mb-4">
         <div class="col-12">
             <h1 class="display-5">
                 <i class="fas fa-tachometer-alt text-success me-3"></i>
-                Performance Benchmark
+                Тестирование производительности
             </h1>
             <p class="lead text-muted">
-                Compare performance and throughput of different message brokers
+                Сравните производительность и пропускную способность различных брокеров сообщений
             </p>
         </div>
     </div>
 
-    <!-- Initialization Alert -->
+    <!-- Предупреждение об инициализации -->
     <div th:unless="${initialized}" class="row mb-4">
         <div class="col-12">
             <div class="alert alert-warning alert-dismissible fade show" role="alert">
                 <h4 class="alert-heading">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    Brokers Not Initialized
+                    Брокеры не инициализированы
                 </h4>
                 <p class="mb-0">
-                    Message brokers are not initialized. Please initialize them before running benchmarks.
+                    Брокеры сообщений не инициализированы. Пожалуйста, инициализируйте их перед запуском тестов.
                 </p>
                 <button type="button" class="btn btn-warning mt-2" onclick="initializeBrokers()">
                     <i class="fas fa-play me-1"></i>
-                    Initialize Brokers
+                    Инициализировать брокеры
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Benchmark Configuration -->
+    <!-- Конфигурация тестирования -->
     <div class="row mb-5">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-cogs me-2"></i>
-                        Benchmark Configuration
+                        Настройки тестирования
                     </h5>
                 </div>
                 <div class="card-body">
                     <form id="benchmarkConfigForm">
                         <div class="row">
-                            <!-- Brokers Selection -->
+                            <!-- Выбор брокеров -->
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Select Brokers to Test</label>
+                                <label class="form-label">Выберите брокеры для тестирования</label>
                                 <div class="brokers-selection">
                                     <div th:each="broker : ${allBrokers}" class="form-check mb-2">
                                         <input class="form-check-input broker-checkbox"
@@ -101,26 +102,26 @@
                                                th:id="${'broker-' + broker}"
                                                th:value="${broker}"
                                                th:checked="${brokersStatus.get(broker)}"
-                                               th:disabled="${!brokersStatus.get(broker)}">
+                                               th:disabled="${brokersStatus.get(broker) == null || !brokersStatus.get(broker)}">
                                         <label class="form-check-label" th:attr="for=${'broker-' + broker}">
                                             <span th:text="${broker.displayName}"></span>
                                             <span th:if="${brokersStatus.get(broker)}" class="badge bg-success ms-2">
-                                                    <i class="fas fa-check me-1"></i>Connected
+                                                    <i class="fas fa-check me-1"></i>Подключен
                                                 </span>
                                             <span th:unless="${brokersStatus.get(broker)}" class="badge bg-danger ms-2">
-                                                    <i class="fas fa-times me-1"></i>Disconnected
+                                                    <i class="fas fa-times me-1"></i>Отключен
                                                 </span>
                                         </label>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Test Parameters -->
+                            <!-- Параметры теста -->
                             <div class="col-md-6 mb-3">
                                 <div class="row">
                                     <div class="col-12 mb-3">
                                         <label for="messageCount" class="form-label">
-                                            Number of Messages
+                                            Количество сообщений
                                             <small class="text-muted" id="messageCountValue">(100)</small>
                                         </label>
                                         <input type="range" class="form-range" id="messageCount"
@@ -128,26 +129,26 @@
                                                th:value="${defaultMessageCount}">
                                     </div>
                                     <div class="col-12 mb-3">
-                                        <label for="destination" class="form-label">Destination</label>
+                                        <label for="destination" class="form-label">Назначение</label>
                                         <input type="text" class="form-control" id="destination"
                                                th:value="${defaultDestination}"
-                                               placeholder="Queue or topic name for testing">
+                                               placeholder="Имя очереди или топика для тестирования">
                                     </div>
                                     <div class="col-12">
-                                        <label class="form-label">Test Type</label>
+                                        <label class="form-label">Тип теста</label>
                                         <div>
                                             <div class="form-check form-check-inline">
                                                 <input class="form-check-input" type="radio" name="testType"
                                                        id="syncTest" value="sync" checked>
                                                 <label class="form-check-label" for="syncTest">
-                                                    Synchronous
+                                                    Синхронный
                                                 </label>
                                             </div>
                                             <div class="form-check form-check-inline">
                                                 <input class="form-check-input" type="radio" name="testType"
                                                        id="asyncTest" value="async">
                                                 <label class="form-check-label" for="asyncTest">
-                                                    Asynchronous
+                                                    Асинхронный
                                                 </label>
                                             </div>
                                         </div>
@@ -156,20 +157,20 @@
                             </div>
                         </div>
 
-                        <!-- Action Buttons -->
+                        <!-- Кнопки действий -->
                         <div class="row mt-3">
                             <div class="col-12">
                                 <button type="submit" class="btn btn-success me-2" id="runBenchmarkBtn">
                                     <i class="fas fa-play me-1"></i>
-                                    Run Benchmark
+                                    Запустить тест
                                 </button>
                                 <button type="button" class="btn btn-warning me-2" onclick="runQuickBenchmark()">
                                     <i class="fas fa-bolt me-1"></i>
-                                    Quick Test (100 messages)
+                                    Быстрый тест (100 сообщений)
                                 </button>
                                 <button type="button" class="btn btn-danger" onclick="stopAllBenchmarks()" id="stopAllBtn" disabled>
                                     <i class="fas fa-stop me-1"></i>
-                                    Stop All Tests
+                                    Остановить все тесты
                                 </button>
                             </div>
                         </div>
@@ -179,90 +180,90 @@
         </div>
     </div>
 
-    <!-- Active Benchmarks -->
+    <!-- Активные тесты -->
     <div class="row mb-4" id="activeBenchmarksSection" style="display: none;">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-spinner fa-spin me-2"></i>
-                        Active Benchmark Tests
+                        Активные тесты производительности
                     </h5>
                 </div>
                 <div class="card-body">
                     <div id="activeBenchmarksList">
-                        <!-- Active benchmarks will be displayed here -->
+                        <!-- Активные тесты будут отображаться здесь -->
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Results Section -->
+    <!-- Секция результатов -->
     <div class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-chart-bar me-2"></i>
-                        Benchmark Results
+                        Результаты тестирования
                     </h5>
                     <div>
                         <button class="btn btn-sm btn-outline-primary me-2" onclick="refreshResults()">
                             <i class="fas fa-sync-alt me-1"></i>
-                            Refresh
+                            Обновить
                         </button>
                         <button class="btn btn-sm btn-outline-danger" onclick="clearResults()">
                             <i class="fas fa-trash me-1"></i>
-                            Clear Results
+                            Очистить результаты
                         </button>
                     </div>
                 </div>
                 <div class="card-body">
-                    <!-- Results Summary -->
+                    <!-- Сводка результатов -->
                     <div id="resultsSummary" class="mb-4" style="display: none;">
-                        <!-- Summary will be displayed here -->
+                        <!-- Сводка будет отображаться здесь -->
                     </div>
 
-                    <!-- Results Table -->
+                    <!-- Таблица результатов -->
                     <div class="table-responsive">
                         <table class="table table-striped table-hover">
                             <thead class="table-dark">
                             <tr>
-                                <th>Broker</th>
-                                <th>Status</th>
-                                <th>Messages</th>
-                                <th>Successful</th>
-                                <th>Time</th>
-                                <th>Throughput</th>
-                                <th>Success Rate</th>
-                                <th>Actions</th>
+                                <th>Брокер</th>
+                                <th>Статус</th>
+                                <th>Сообщения</th>
+                                <th>Успешно</th>
+                                <th>Время</th>
+                                <th>Пропускная способность</th>
+                                <th>Успешность</th>
+                                <th>Действия</th>
                             </tr>
                             </thead>
                             <tbody id="resultsTable">
                             <tr>
                                 <td colspan="8" class="text-center text-muted py-4">
                                     <i class="fas fa-chart-bar fa-2x mb-3 d-block"></i>
-                                    No benchmark results yet. Run a test to see performance comparison.
+                                    Результатов тестирования пока нет. Запустите тест для сравнения производительности.
                                 </td>
                             </tr>
                             </tbody>
                         </table>
                     </div>
 
-                    <!-- Charts Section -->
+                    <!-- Секция графиков -->
                     <div id="chartsSection" class="mt-4" style="display: none;">
                         <h6 class="mb-3">
                             <i class="fas fa-chart-line me-2"></i>
-                            Performance Comparison
+                            Сравнение производительности
                         </h6>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <div class="card">
                                     <div class="card-body">
-                                        <h6 class="card-title">Throughput (messages/second)</h6>
+                                        <h6 class="card-title">Пропускная способность (сообщений/секунду)</h6>
                                         <div id="throughputChart" style="height: 200px;">
-                                            <!-- Chart will be rendered here -->
+                                            <!-- График будет отображаться здесь -->
                                         </div>
                                     </div>
                                 </div>
@@ -270,9 +271,9 @@
                             <div class="col-md-6 mb-3">
                                 <div class="card">
                                     <div class="card-body">
-                                        <h6 class="card-title">Success Rate (%)</h6>
+                                        <h6 class="card-title">Успешность доставки (%)</h6>
                                         <div id="successRateChart" style="height: 200px;">
-                                            <!-- Chart will be rendered here -->
+                                            <!-- График будет отображаться здесь -->
                                         </div>
                                     </div>
                                 </div>
@@ -285,23 +286,23 @@
     </div>
 </div>
 
-<!-- Footer -->
+<!-- Подвал -->
 <footer class="bg-dark text-light mt-5 py-4">
     <div class="container">
         <div class="row">
             <div class="col-md-6">
-                <h5>Message Brokers Comparison</h5>
-                <p class="mb-0">A demonstration project comparing different message brokers</p>
+                <h5>Сравнение брокеров сообщений</h5>
+                <p class="mb-0">Демонстрационный проект сравнения различных брокеров сообщений</p>
             </div>
             <div class="col-md-6 text-md-end">
-                <a href="/about" class="text-light me-3">About</a>
-                <a href="/health" class="text-light">Health</a>
+                <a href="/about" class="text-light me-3">О проекте</a>
+                <a href="/health" class="text-light">Состояние</a>
             </div>
         </div>
     </div>
 </footer>
 
-<!-- Scripts -->
+<!-- Скрипты -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script th:src="@{/js/app.js}"></script>
 <script th:src="@{/js/benchmark.js}"></script>

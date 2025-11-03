@@ -1,0 +1,72 @@
+.benchmark-config-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+.benchmark-result-card {
+    transition: all 0.3s ease;
+}
+.benchmark-result-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.result-table {
+    font-size: 0.9em;
+}
+.throughput-high {
+    color: #28a745;
+    font-weight: bold;
+}
+.throughput-medium {
+    color: #ffc107;
+    font-weight: bold;
+}
+.throughput-low {
+    color: #dc3545;
+    font-weight: bold;
+}
+.progress-bar-custom {
+    transition: width 0.5s ease;
+}
+.benchmark-active {
+    border-left: 4px solid #28a745;
+    background-color: #f8fff9;
+}
+.benchmark-completed {
+    border-left: 4px solid #17a2b8;
+    background-color: #f0f9ff;
+}
+.benchmark-failed {
+    border-left: 4px solid #dc3545;
+    background-color: #fff5f5;
+}
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+.quick-test-btn {
+    transition: all 0.2s ease;
+}
+.quick-test-btn:hover {
+    transform: scale(1.05);
+}
+.broker-checkbox {
+    transform: scale(1.2);
+}
+.test-status {
+    font-size: 0.8em;
+    padding: 4px 8px;
+    border-radius: 12px;
+}
+.status-running {
+    background-color: #d4edda;
+    color: #155724;
+}
+.status-completed {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+.status-failed {
+    background-color: #f8d7da;
+    color: #721c24;
+}

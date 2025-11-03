@@ -22,7 +22,7 @@
         <module>rabbitmq-module</module>
         <module>kafka-module</module>
         <module>websocket-module</module>
-        <module>demo-ap</module>
+        <module>demo-app</module>
     </modules>
 
     <properties>

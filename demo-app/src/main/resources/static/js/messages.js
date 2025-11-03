@@ -31,7 +31,7 @@ class MessagesPage {
         const messageContent = document.getElementById('messageContent').value;
 
         if (!brokerType || !destination || !messageContent) {
-            window.app.showError('Please fill all fields');
+            window.app.showError('Пожалуйста, заполните все поля');
             return;
         }
 
@@ -39,7 +39,7 @@ class MessagesPage {
         const originalText = sendBtn.innerHTML;
 
         try {
-            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Sending...';
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Отправка...';
             sendBtn.disabled = true;
 
             const response = await window.app.apiCall('/messages/send', {
@@ -52,7 +52,7 @@ class MessagesPage {
             });
 
             if (response.status === 'SUCCESS') {
-                window.app.showSuccess(`Message sent via ${brokerType}! Message ID: ${response.messageId}`);
+                window.app.showSuccess(`Сообщение отправлено через ${brokerType}! ID: ${response.messageId}`);
                 this.addMessageToHistory({
                     timestamp: new Date().toISOString(),
                     brokerType: brokerType,
@@ -62,12 +62,12 @@ class MessagesPage {
                     messageId: response.messageId
                 });
             } else {
-                window.app.showError('Failed to send message: ' + response.message);
+                window.app.showError('Не удалось отправить сообщение: ' + response.message);
             }
 
         } catch (error) {
             console.error('Error sending message:', error);
-            window.app.showError('Failed to send message: ' + error.message);
+            window.app.showError('Не удалось отправить сообщение: ' + error.message);
         } finally {
             sendBtn.innerHTML = originalText;
             sendBtn.disabled = false;
@@ -79,14 +79,14 @@ class MessagesPage {
         const destination = document.getElementById('subscribeDestination').value;
 
         if (!brokerType || !destination) {
-            window.app.showError('Please select broker and enter destination');
+            window.app.showError('Пожалуйста, выберите брокер и введите назначение');
             return;
         }
 
         const subscriptionKey = `${brokerType}:${destination}`;
 
         if (this.activeSubscriptions.has(subscriptionKey)) {
-            window.app.showError('Already subscribed to this destination');
+            window.app.showError('Уже подписаны на это назначение');
             return;
         }
 
@@ -98,14 +98,14 @@ class MessagesPage {
             if (response.status === 'SUCCESS') {
                 this.activeSubscriptions.add(subscriptionKey);
                 this.updateSubscriptionsDisplay();
-                window.app.showSuccess(`Subscribed to ${destination} via ${brokerType}`);
+                window.app.showSuccess(`Подписаны на ${destination} через ${brokerType}`);
             } else {
-                window.app.showError('Failed to subscribe: ' + response.message);
+                window.app.showError('Не удалось подписаться: ' + response.message);
             }
 
         } catch (error) {
             console.error('Error subscribing:', error);
-            window.app.showError('Failed to subscribe: ' + error.message);
+            window.app.showError('Не удалось подписаться: ' + error.message);
         }
     }
 
@@ -113,7 +113,7 @@ class MessagesPage {
         const subscriptionsList = document.getElementById('subscriptionsList');
 
         if (this.activeSubscriptions.size === 0) {
-            subscriptionsList.innerHTML = '<small class="text-muted">No active subscriptions</small>';
+            subscriptionsList.innerHTML = '<small class="text-muted">Нет активных подписок</small>';
             return;
         }
 
@@ -139,7 +139,7 @@ class MessagesPage {
     unsubscribe(subscriptionKey) {
         this.activeSubscriptions.delete(subscriptionKey);
         this.updateSubscriptionsDisplay();
-        window.app.showSuccess('Unsubscribed from destination');
+        window.app.showSuccess('Отписаны от назначения');
     }
 
     async loadMessageHistory() {
@@ -163,11 +163,11 @@ class MessagesPage {
             tableBody.innerHTML = `
                 <tr>
                     <td colspan="5" class="text-center text-muted">
-                        No messages yet. Send a message to see history.
+                        Сообщений пока нет. Отправьте сообщение, чтобы увидеть историю.
                     </td>
                 </tr>
             `;
-            historyCount.textContent = 'Showing 0 messages';
+            historyCount.textContent = 'Показано 0 сообщений';
             return;
         }
 
@@ -178,8 +178,8 @@ class MessagesPage {
         recentMessages.forEach(msg => {
             const time = window.app.formatTimestamp(msg.timestamp);
             const statusBadge = msg.status === 'SENT'
-                ? '<span class="badge bg-success">Sent</span>'
-                : '<span class="badge bg-info">Received</span>';
+                ? '<span class="badge bg-success">Отправлено</span>'
+                : '<span class="badge bg-info">Получено</span>';
 
             html += `
                 <tr>
@@ -196,7 +196,7 @@ class MessagesPage {
         });
 
         tableBody.innerHTML = html;
-        historyCount.textContent = `Showing ${recentMessages.length} of ${this.messageHistory.length} messages`;
+        historyCount.textContent = `Показано ${recentMessages.length} из ${this.messageHistory.length} сообщений`;
     }
 
     addMessageToHistory(message) {
@@ -205,7 +205,7 @@ class MessagesPage {
     }
 
     async clearMessageHistory() {
-        if (!confirm('Are you sure you want to clear all message history?')) {
+        if (!confirm('Вы уверены, что хотите очистить всю историю сообщений?')) {
             return;
         }
 
@@ -217,11 +217,11 @@ class MessagesPage {
             if (response.status === 'SUCCESS') {
                 this.messageHistory = [];
                 this.updateHistoryDisplay();
-                window.app.showSuccess(`Cleared ${response.clearedMessages} messages from history`);
+                window.app.showSuccess(`Очищено ${response.clearedMessages} сообщений из истории`);
             }
         } catch (error) {
             console.error('Error clearing history:', error);
-            window.app.showError('Failed to clear history: ' + error.message);
+            window.app.showError('Не удалось очистить историю: ' + error.message);
         }
     }
 
@@ -237,14 +237,14 @@ function initializeBrokers() {
     window.app.apiCall('/messages/initialize', { method: 'POST' })
         .then(data => {
             if (data.status === 'SUCCESS') {
-                window.app.showSuccess('Brokers initialized successfully!');
+                window.app.showSuccess('Брокеры успешно инициализированы!');
                 setTimeout(() => location.reload(), 1000);
             } else {
-                window.app.showError('Failed to initialize brokers: ' + data.message);
+                window.app.showError('Не удалось инициализировать брокеры: ' + data.message);
             }
         })
         .catch(error => {
-            window.app.showError('Error initializing brokers: ' + error.message);
+            window.app.showError('Ошибка инициализации брокеров: ' + error.message);
         });
 }
 
@@ -274,7 +274,7 @@ function clearMessageHistory() {
 function refreshMessageHistory() {
     if (window.messagesPage) {
         window.messagesPage.loadMessageHistory();
-        window.app.showSuccess('Message history refreshed');
+        window.app.showSuccess('История сообщений обновлена');
     }
 }
 

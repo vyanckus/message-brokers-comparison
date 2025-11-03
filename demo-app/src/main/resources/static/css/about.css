@@ -1,0 +1,156 @@
+.hero-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 60px 40px;
+    border-radius: 15px;
+    margin-bottom: 40px;
+}
+
+.tech-stack {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.tech-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 0.9em;
+    color: white;
+}
+
+.tech-badge.java {
+    background-color: #ed8b00;
+}
+
+.tech-badge.spring {
+    background-color: #6db33f;
+}
+
+.tech-badge.maven {
+    background-color: #c71a36;
+}
+
+.tech-badge.docker {
+    background-color: #2496ed;
+}
+
+.feature-card {
+    padding: 30px 20px;
+    border-radius: 10px;
+    background: white;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+    height: 100%;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+}
+
+.feature-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    color: white;
+    font-size: 2em;
+}
+
+.architecture-diagram {
+    text-align: center;
+    padding: 20px;
+}
+
+.arch-layer {
+    margin: 20px 0;
+}
+
+.arch-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.arch-components {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.arch-component {
+    padding: 15px 25px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    min-width: 120px;
+}
+
+.arch-component.web {
+    background-color: #28a745;
+}
+
+.arch-component.api {
+    background-color: #17a2b8;
+}
+
+.arch-component.service {
+    background-color: #ffc107;
+    color: #333;
+}
+
+.arch-component.broker {
+    color: white;
+}
+
+.arch-component.activemq {
+    background-color: #e83e8c;
+}
+
+.arch-component.rabbitmq {
+    background-color: #ff6b35;
+}
+
+.arch-component.kafka {
+    background-color: #231f20;
+}
+
+.arch-component.websocket {
+    background-color: #6610f2;
+}
+
+.arch-arrow {
+    font-size: 2em;
+    color: #6c757d;
+    margin: 10px 0;
+}
+
+.comparison-table th {
+    background-color: #343a40;
+    border-color: #454d55;
+}
+
+.tech-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.tech-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.tech-list li:last-child {
+    border-bottom: none;
+}
+
+footer {
+    margin-top: 50px;
+}

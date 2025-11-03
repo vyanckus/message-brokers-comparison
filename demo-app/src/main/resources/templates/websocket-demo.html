@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Демо - Сравнение брокеров сообщений</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link th:href="@{/css/websocket-demo.css}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.2/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <i class="fas fa-broadcast-tower"></i> WebSocket Демо
+        </a>
+        <div class="navbar-nav">
+            <a class="nav-link" href="/">Главная</a>
+            <a class="nav-link" href="/messages">Сообщения</a>
+            <a class="nav-link" href="/benchmark">Тестирование</a>
+            <a class="nav-link" href="/monitoring">Мониторинг</a>
+            <a class="nav-link active" href="/websocket-demo">WebSocket Демо</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <!-- Статус подключения -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-plug"></i> WebSocket Подключение</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div class="connection-status">
+                                <span class="status-indicator" id="connectionStatus"></span>
+                                <span id="connectionText">Отключено</span>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted" id="connectionDetails">
+                                    Нажмите "Подключить" для установки WebSocket соединения
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-success" onclick="websocketDemo.connect()" id="connectBtn">
+                                    <i class="fas fa-plug"></i> Подключить
+                                </button>
+                                <button type="button" class="btn btn-danger" onclick="websocketDemo.disconnect()" id="disconnectBtn" disabled>
+                                    <i class="fas fa-power-off"></i> Отключить
+                                </button>
+                                <button type="button" class="btn btn-outline-info" onclick="websocketDemo.clearData()">
+                                    <i class="fas fa-broom"></i> Очистить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Левая колонка: Управление и данные -->
+        <div class="col-lg-4 mb-4">
+            <!-- Управление генератором данных -->
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-sliders-h"></i> Генератор данных</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Тип данных</label>
+                        <select class="form-select" id="dataType">
+                            <option value="sine">Синусоида</option>
+                            <option value="cosine">Косинусоида</option>
+                            <option value="random">Случайные данные</option>
+                            <option value="sawtooth">Пилообразный сигнал</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Интервал обновления: <span id="intervalValue">1000</span>мс</label>
+                        <input type="range" class="form-range" min="100" max="5000" step="100" value="1000" id="updateInterval">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Амплитуда: <span id="amplitudeValue">50</span></label>
+                        <input type="range" class="form-range" min="10" max="100" step="5" value="50" id="amplitude">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Частота: <span id="frequencyValue">1</span>Гц</label>
+                        <input type="range" class="form-range" min="1" max="10" step="1" value="1" id="frequency">
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-warning" onclick="websocketDemo.startGenerator()" id="startGeneratorBtn">
+                            <i class="fas fa-play"></i> Запустить генератор
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="websocketDemo.stopGenerator()" id="stopGeneratorBtn" disabled>
+                            <i class="fas fa-stop"></i> Остановить генератор
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Статистика в реальном времени -->
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Статистика</h5>
+                </div>
+                <div class="card-body">
+                    <div class="stat-item">
+                        <strong>Получено сообщений:</strong>
+                        <span id="messagesReceived">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <strong>Точек данных:</strong>
+                        <span id="dataPoints">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <strong>Время подключения:</strong>
+                        <span id="connectionTime">0с</span>
+                    </div>
+                    <div class="stat-item">
+                        <strong>Последнее обновление:</strong>
+                        <span id="lastUpdate">Никогда</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Лог сообщений -->
+            <div class="card mt-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-list"></i> Лог сообщений</h5>
+                </div>
+                <div class="card-body">
+                    <div class="message-log" id="messageLog">
+                        <div class="log-entry log-info">Готов к подключению...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка: Графики -->
+        <div class="col-lg-8 mb-4">
+            <!-- Основной график -->
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> График данных</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="mainChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Дополнительные графики -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-secondary text-white">
+                            <h6 class="mb-0"><i class="fas fa-wave-square"></i> Анализ частоты</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container-small">
+                                <canvas id="frequencyChart" width="200" height="150"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-secondary text-white">
+                            <h6 class="mb-0"><i class="fas fa-tachometer-alt"></i> Пропускная способность</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container-small">
+                                <canvas id="throughputChart" width="200" height="150"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/websocket-demo.js}"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

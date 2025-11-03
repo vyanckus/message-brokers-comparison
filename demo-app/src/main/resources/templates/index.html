@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${pageTitle}">Message Brokers Comparison</title>
+    <title th:text="${pageTitle}">Сравнение брокеров сообщений</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link th:href="@{/css/style.css}" rel="stylesheet">
 </head>
 <body>
-<!-- Navigation -->
+<!-- Навигация -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container">
         <a class="navbar-brand" href="/">
             <i class="fas fa-exchange-alt me-2"></i>
-            Message Brokers Comparison
+            Сравнение брокеров сообщений
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
@@ -22,68 +22,68 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
-                    <a class="nav-link active" href="/">Home</a>
+                    <a class="nav-link active" href="/">Главная</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/messages">Messages</a>
+                    <a class="nav-link" href="/messages">Сообщения</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/benchmark">Benchmark</a>
+                    <a class="nav-link" href="/benchmark">Тестирование</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/monitoring">Monitoring</a>
+                    <a class="nav-link" href="/monitoring">Мониторинг</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/websocket-demo">WebSocket Demo</a>
+                    <a class="nav-link" href="/websocket-demo">WebSocket Демо</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/about">About</a>
+                    <a class="nav-link" href="/about">О проекте</a>
                 </li>
             </ul>
         </div>
     </div>
 </nav>
 
-<!-- Main Content -->
+<!-- Основной контент -->
 <div class="container mt-4">
-    <!-- Header -->
+    <!-- Заголовок -->
     <div class="row mb-4">
         <div class="col-12">
             <h1 class="display-4 text-center">
                 <i class="fas fa-rocket text-primary me-3"></i>
-                Message Brokers Comparison
+                Сравнение брокеров сообщений
             </h1>
             <p class="lead text-center text-muted">
-                Compare performance and features of ActiveMQ, RabbitMQ, Kafka, and WebSocket
+                Сравните производительность и возможности ActiveMQ, RabbitMQ, Kafka и WebSocket
             </p>
         </div>
     </div>
 
-    <!-- Initialization Alert -->
+    <!-- Предупреждение об инициализации -->
     <div th:unless="${initialized}" class="row mb-4">
         <div class="col-12">
             <div class="alert alert-warning alert-dismissible fade show" role="alert">
                 <h4 class="alert-heading">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    Brokers Not Initialized
+                    Брокеры не инициализированы
                 </h4>
                 <p class="mb-0">
-                    Message brokers are not initialized. Please initialize them before testing.
+                    Брокеры сообщений не инициализированы. Пожалуйста, инициализируйте их перед тестированием.
                 </p>
                 <button type="button" class="btn btn-warning mt-2" onclick="initializeBrokers()">
                     <i class="fas fa-play me-1"></i>
-                    Initialize Brokers
+                    Инициализировать брокеры
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Brokers Status Cards -->
+    <!-- Карточки статуса брокеров -->
     <div class="row mb-4">
         <div class="col-12">
             <h3 class="mb-3">
                 <i class="fas fa-server me-2"></i>
-                Brokers Status
+                Статус брокеров
             </h3>
         </div>
 
@@ -91,23 +91,21 @@
             <div class="card h-100 broker-card" th:classappend="${brokersStatus.get(broker)} ? 'border-success' : 'border-danger'">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
-                        <h5 class="card-title" th:text="${broker.displayName}">Broker Name</h5>
+                        <h5 class="card-title" th:text="${broker.displayName}">Название брокера</h5>
                         <span th:if="${brokersStatus.get(broker)}" class="badge bg-success">
-                                <i class="fas fa-check-circle me-1"></i>Connected
+                                <i class="fas fa-check-circle me-1"></i>Подключен
                             </span>
                         <span th:unless="${brokersStatus.get(broker)}" class="badge bg-danger">
-                                <i class="fas fa-times-circle me-1"></i>Disconnected
+                                <i class="fas fa-times-circle me-1"></i>Отключен
                             </span>
                     </div>
-                    <p class="card-text text-muted small" th:text="${broker.description}">
-                        Broker description
-                    </p>
+                    <p th:text="${@webController.getBrokerDescription(broker)}">Описание брокера</p>
                     <div class="mt-2">
                             <span th:if="${brokersHealth.get(broker)}" class="badge bg-info">
-                                <i class="fas fa-heartbeat me-1"></i>Healthy
+                                <i class="fas fa-heartbeat me-1"></i>Работает
                             </span>
                         <span th:unless="${brokersHealth.get(broker)}" class="badge bg-warning">
-                                <i class="fas fa-exclamation-triangle me-1"></i>Unhealthy
+                                <i class="fas fa-exclamation-triangle me-1"></i>Проблемы
                             </span>
                     </div>
                 </div>
@@ -115,12 +113,12 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
+    <!-- Быстрые действия -->
     <div class="row">
         <div class="col-12">
             <h3 class="mb-3">
                 <i class="fas fa-bolt me-2"></i>
-                Quick Actions
+                Быстрые действия
             </h3>
         </div>
 
@@ -128,11 +126,11 @@
             <div class="card text-center h-100 action-card">
                 <div class="card-body">
                     <i class="fas fa-paper-plane fa-3x text-primary mb-3"></i>
-                    <h5 class="card-title">Send Messages</h5>
-                    <p class="card-text">Test message sending through different brokers</p>
+                    <h5 class="card-title">Отправка сообщений</h5>
+                    <p class="card-text">Тестирование отправки сообщений через разные брокеры</p>
                     <a href="/messages" class="btn btn-primary">
                         <i class="fas fa-arrow-right me-1"></i>
-                        Go to Messages
+                        К сообщениям
                     </a>
                 </div>
             </div>
@@ -142,11 +140,11 @@
             <div class="card text-center h-100 action-card">
                 <div class="card-body">
                     <i class="fas fa-tachometer-alt fa-3x text-success mb-3"></i>
-                    <h5 class="card-title">Performance Test</h5>
-                    <p class="card-text">Run benchmark tests and compare performance</p>
+                    <h5 class="card-title">Тестирование</h5>
+                    <p class="card-text">Запуск тестов производительности и сравнение результатов</p>
                     <a href="/benchmark" class="btn btn-success">
                         <i class="fas fa-arrow-right me-1"></i>
-                        Run Benchmark
+                        Запустить тесты
                     </a>
                 </div>
             </div>
@@ -156,11 +154,11 @@
             <div class="card text-center h-100 action-card">
                 <div class="card-body">
                     <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
-                    <h5 class="card-title">Monitoring</h5>
-                    <p class="card-text">Monitor brokers status and view statistics</p>
+                    <h5 class="card-title">Мониторинг</h5>
+                    <p class="card-text">Мониторинг статуса брокеров и просмотр статистики</p>
                     <a href="/monitoring" class="btn btn-info">
                         <i class="fas fa-arrow-right me-1"></i>
-                        View Monitoring
+                        Мониторинг
                     </a>
                 </div>
             </div>
@@ -170,40 +168,40 @@
             <div class="card text-center h-100 action-card">
                 <div class="card-body">
                     <i class="fas fa-broadcast-tower fa-3x text-warning mb-3"></i>
-                    <h5 class="card-title">WebSocket Demo</h5>
-                    <p class="card-text">Real-time communication with live charts</p>
+                    <h5 class="card-title">WebSocket Демо</h5>
+                    <p class="card-text">Общение в реальном времени с живыми графиками</p>
                     <a href="/websocket-demo" class="btn btn-warning">
                         <i class="fas fa-arrow-right me-1"></i>
-                        Open Demo
+                        Открыть демо
                     </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- System Info -->
+    <!-- Системная информация -->
     <div class="row mt-5">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-info-circle me-2"></i>
-                        System Information
+                        Системная информация
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <strong>Current Time:</strong>
+                            <strong>Текущее время:</strong>
                             <span th:text="${currentTime}">2024-01-15T10:30:00</span>
                         </div>
                         <div class="col-md-6">
-                            <strong>Brokers Initialized:</strong>
+                            <strong>Брокеры инициализированы:</strong>
                             <span th:if="${initialized}" class="text-success">
-                                    <i class="fas fa-check-circle me-1"></i>Yes
+                                    <i class="fas fa-check-circle me-1"></i>Да
                                 </span>
                             <span th:unless="${initialized}" class="text-danger">
-                                    <i class="fas fa-times-circle me-1"></i>No
+                                    <i class="fas fa-times-circle me-1"></i>Нет
                                 </span>
                         </div>
                     </div>
@@ -213,23 +211,23 @@
     </div>
 </div>
 
-<!-- Footer -->
+<!-- Подвал -->
 <footer class="bg-dark text-light mt-5 py-4">
     <div class="container">
         <div class="row">
             <div class="col-md-6">
-                <h5>Message Brokers Comparison</h5>
-                <p class="mb-0">A demonstration project comparing different message brokers</p>
+                <h5>Сравнение брокеров сообщений</h5>
+                <p class="mb-0">Демонстрационный проект сравнения различных брокеров сообщений</p>
             </div>
             <div class="col-md-6 text-md-end">
-                <a href="/about" class="text-light me-3">About</a>
-                <a href="/health" class="text-light">Health</a>
+                <a href="/about" class="text-light me-3">О проекте</a>
+                <a href="/health" class="text-light">Состояние</a>
             </div>
         </div>
     </div>
 </footer>
 
-<!-- Scripts -->
+<!-- Скрипты -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script th:src="@{/js/app.js}"></script>
 <script>
@@ -243,15 +241,15 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'SUCCESS') {
-                    alert('Brokers initialized successfully!');
+                    alert('Брокеры успешно инициализированы!');
                     location.reload();
                 } else {
-                    alert('Failed to initialize brokers: ' + data.message);
+                    alert('Ошибка инициализации брокеров: ' + data.message);
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('Error initializing brokers');
+                console.error('Ошибка:', error);
+                alert('Ошибка при инициализации брокеров');
             });
         }
     </script>
