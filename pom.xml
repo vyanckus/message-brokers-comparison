@@ -10,12 +10,6 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>activemq-producer</module>
-        <module>activemq-consumer</module>
-        <module>rabbitmq-demo</module>
-        <module>kafka-producer</module>
-        <module>kafka-consumer</module>
-        <module>websocket-demo</module>
         <module>shared-dto</module>
         <module>broker-core</module>
         <module>activemq-module</module>
