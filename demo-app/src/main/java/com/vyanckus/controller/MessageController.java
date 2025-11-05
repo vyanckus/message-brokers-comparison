@@ -1,5 +1,6 @@
 package com.vyanckus.controller;
 
+import com.vyanckus.broker.MessageBroker;
 import com.vyanckus.dto.BrokersType;
 import com.vyanckus.dto.MessageRequest;
 import com.vyanckus.dto.MessageResponse;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -47,10 +49,7 @@ public class MessageController {
 
     public MessageController(MessageBrokerService messageBrokerService) {
         this.messageBrokerService = messageBrokerService;
-
-        // Регистрируем слушатель для сохранения истории сообщений
         this.messageBrokerService.addMessageListener(this::handleReceivedMessage);
-
         log.info("MessageController initialized");
     }
 
@@ -63,25 +62,15 @@ public class MessageController {
     public ResponseEntity<Map<String, Object>> initializeBrokers() {
         try {
             messageBrokerService.initialize();
-
             Map<String, Object> response = Map.of(
                     "status", "SUCCESS",
                     "message", "All message brokers initialized successfully",
                     "timestamp", java.time.Instant.now()
             );
-
             log.info("Brokers initialization requested via API");
             return ResponseEntity.ok(response);
-
         } catch (BrokerConnectionException e) {
-            Map<String, Object> errorResponse = Map.of(
-                    "status", "ERROR",
-                    "message", "Failed to initialize brokers: " + e.getMessage(),
-                    "timestamp", java.time.Instant.now()
-            );
-
-            log.error("Brokers initialization failed: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            return createErrorResponse("Failed to initialize brokers: " + e.getMessage());
         }
     }
 
@@ -96,10 +85,8 @@ public class MessageController {
         if (!messageBrokerService.isInitialized()) {
             return createErrorResponse("Message brokers not initialized. Call /api/messages/initialize first.");
         }
-
         try {
             MessageResponse response = messageBrokerService.sendMessage(request);
-
             Map<String, Object> successResponse = Map.of(
                     "status", "SUCCESS",
                     "brokerType", response.brokerType(),
@@ -107,16 +94,10 @@ public class MessageController {
                     "details", response.details(),
                     "timestamp", response.timestamp()
             );
-
             log.debug("Message sent via {} broker to: {}", request.brokerType(), request.destination());
             return ResponseEntity.ok(successResponse);
-
         } catch (MessageSendException e) {
-            log.error("Failed to send message via {} broker: {}", request.brokerType(), e.getMessage());
             return createErrorResponse("Failed to send message: " + e.getMessage());
-        } catch (Exception e) {
-            log.error("Unexpected error sending message: {}", e.getMessage(), e);
-            return createErrorResponse("Unexpected error: " + e.getMessage());
         }
     }
 
@@ -131,14 +112,11 @@ public class MessageController {
     public ResponseEntity<Map<String, Object>> subscribe(
             @PathVariable BrokersType brokerType,
             @RequestParam String destination) {
-
         if (!messageBrokerService.isInitialized()) {
             return createErrorResponse("Message brokers not initialized. Call /api/messages/initialize first.");
         }
-
         try {
             messageBrokerService.subscribe(brokerType, destination);
-
             Map<String, Object> response = Map.of(
                     "status", "SUCCESS",
                     "message", "Subscribed to " + destination + " via " + brokerType + " broker",
@@ -146,13 +124,148 @@ public class MessageController {
                     "destination", destination,
                     "timestamp", java.time.Instant.now()
             );
-
             log.info("Subscription created via API: {} -> {}", brokerType, destination);
             return ResponseEntity.ok(response);
-
         } catch (Exception e) {
-            log.error("Failed to subscribe to {} via {} broker: {}", destination, brokerType, e.getMessage());
             return createErrorResponse("Failed to subscribe: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Получить конкретный брокер
+     */
+    public MessageBroker getBroker(BrokersType brokerType) {
+        // Нужно добавить этот метод в MessageBrokerService
+        return messageBrokerService.getBroker(brokerType);
+    }
+
+    /**
+     * Запуск конкретного брокера (реальная реализация)
+     */
+    @PostMapping("/{brokerType}/start")
+    public ResponseEntity<Map<String, Object>> startBroker(@PathVariable String brokerType) {
+        try {
+            // Конвертируем строку в enum (case-insensitive)
+            BrokersType type = BrokersType.fromString(brokerType);
+            if (type == null) {
+                return createErrorResponse("Unknown broker type: " + brokerType);
+            }
+
+            if (!messageBrokerService.isInitialized()) {
+                return createErrorResponse("Message brokers not initialized. Call /api/messages/initialize first.");
+            }
+
+            // Получаем брокер и подключаем его
+            MessageBroker broker = messageBrokerService.getBroker(type);
+            if (broker != null) {
+                if (!broker.isConnected()) {
+                    broker.connect();
+                }
+
+                Map<String, Object> response = Map.of(
+                        "status", "SUCCESS",
+                        "message", "Broker " + type + " started successfully",
+                        "brokerType", type,
+                        "connected", broker.isConnected(),
+                        "timestamp", java.time.Instant.now()
+                );
+                log.info("Broker {} started via API", type);
+                return ResponseEntity.ok(response);
+            } else {
+                return createErrorResponse("Broker " + type + " not available or not configured");
+            }
+        } catch (Exception e) {
+            log.error("Failed to start broker {}: {}", brokerType, e.getMessage());
+            return createErrorResponse("Failed to start broker " + brokerType + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Остановка конкретного брокера (реальная реализация)
+     */
+    @PostMapping("/{brokerType}/stop")
+    public ResponseEntity<Map<String, Object>> stopBroker(@PathVariable String brokerType) {
+        try {
+            // Конвертируем строку в enum (case-insensitive)
+            BrokersType type = BrokersType.fromString(brokerType);
+            if (type == null) {
+                return createErrorResponse("Unknown broker type: " + brokerType);
+            }
+
+            if (!messageBrokerService.isInitialized()) {
+                return createErrorResponse("Message brokers not initialized");
+            }
+
+            MessageBroker broker = messageBrokerService.getBroker(type);
+            if (broker != null && broker.isConnected()) {
+                broker.disconnect();
+
+                Map<String, Object> response = Map.of(
+                        "status", "SUCCESS",
+                        "message", "Broker " + type + " stopped successfully",
+                        "brokerType", type,
+                        "connected", false,
+                        "timestamp", java.time.Instant.now()
+                );
+                log.info("Broker {} stopped via API", type);
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, Object> response = Map.of(
+                        "status", "SUCCESS",
+                        "message", "Broker " + type + " already stopped",
+                        "brokerType", type,
+                        "connected", false,
+                        "timestamp", java.time.Instant.now()
+                );
+                return ResponseEntity.ok(response);
+            }
+        } catch (Exception e) {
+            log.error("Failed to stop broker {}: {}", brokerType, e.getMessage());
+            return createErrorResponse("Failed to stop broker " + brokerType + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Отправка сообщения через конкретный брокер (упрощенная версия для frontend)
+     */
+    @PostMapping("/{brokerType}/send")
+    public ResponseEntity<Map<String, Object>> sendMessageToBroker(
+            @PathVariable String brokerType,
+            @RequestBody Map<String, String> request) {
+
+        try {
+            // Конвертируем строку в enum
+            BrokersType type = BrokersType.fromString(brokerType);
+            if (type == null) {
+                return createErrorResponse("Unknown broker type: " + brokerType);
+            }
+
+            if (!messageBrokerService.isInitialized()) {
+                return createErrorResponse("Message brokers not initialized. Call /api/messages/initialize first.");
+            }
+
+            String message = request.get("message");
+            String destination = request.get("destination") != null ? request.get("destination") : "test.queue";
+
+            if (message == null || message.isBlank()) {
+                return createErrorResponse("Message cannot be empty");
+            }
+
+            MessageRequest messageRequest = new MessageRequest(type, destination, message); // ИСПОЛЬЗУЕМ type
+            MessageResponse response = messageBrokerService.sendMessage(messageRequest);
+
+            Map<String, Object> successResponse = Map.of(
+                    "status", "SUCCESS",
+                    "brokerType", response.brokerType(),
+                    "messageId", response.messageId(),
+                    "details", response.details(),
+                    "timestamp", response.timestamp()
+            );
+            return ResponseEntity.ok(successResponse);
+        } catch (MessageSendException e) {
+            return createErrorResponse("Failed to send message: " + e.getMessage());
+        } catch (Exception e) {
+            return createErrorResponse("Error processing request: " + e.getMessage());
         }
     }
 
@@ -192,6 +305,52 @@ public class MessageController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Возвращает детальные метрики всех брокеров для веб-интерфейса.
+     * Включает статус, здоровье, счетчики сообщений и другую статистику.
+     *
+     * @return ResponseEntity с метриками брокеров
+     */
+    @GetMapping("/metrics")
+    public ResponseEntity<Map<String, Object>> getBrokersMetrics() {
+        try {
+            Map<String, Object> metrics = new HashMap<>();
+
+            // Получаем базовый статус
+            Map<BrokersType, Boolean> status = messageBrokerService.getBrokersStatus();
+            Map<BrokersType, Boolean> health = messageBrokerService.getBrokersHealth();
+
+            // Собираем детальные метрики для каждого брокера
+            for (BrokersType brokerType : BrokersType.values()) {
+                Map<String, Object> brokerMetrics = new HashMap<>();
+
+                // Базовый статус
+                brokerMetrics.put("status", status.getOrDefault(brokerType, false) ? "RUNNING" : "STOPPED");
+                brokerMetrics.put("health", health.getOrDefault(brokerType, false));
+
+                // Метрики производительности (заглушки - нужно реализовать в сервисе)
+                brokerMetrics.put("messagesSent", getMessageCount(brokerType));
+                brokerMetrics.put("messagesReceived", getReceivedMessageCount(brokerType));
+                brokerMetrics.put("averageLatency", getAverageLatency(brokerType));
+                brokerMetrics.put("lastActivity", java.time.Instant.now().toString());
+
+                metrics.put(brokerType.name().toLowerCase(), brokerMetrics);
+            }
+
+            Map<String, Object> response = Map.of(
+                    "status", "SUCCESS",
+                    "metrics", metrics,
+                    "timestamp", java.time.Instant.now()
+            );
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to get brokers metrics: {}", e.getMessage());
+            return createErrorResponse("Failed to get metrics: " + e.getMessage());
+        }
     }
 
     /**
@@ -252,5 +411,20 @@ public class MessageController {
         );
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+
+
+
+    // Временные заглушки для метрик
+    private int getMessageCount(BrokersType brokerType) {
+        return (int) (Math.random() * 100);
+    }
+
+    private int getReceivedMessageCount(BrokersType brokerType) {
+        return (int) (Math.random() * 80);
+    }
+
+    private long getAverageLatency(BrokersType brokerType) {
+        return (long) (Math.random() * 50);
     }
 }

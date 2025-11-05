@@ -8,7 +8,10 @@ const websocketDemo = {
         dataPoints: 0,
         connectionStart: null,
         lastUpdate: null,
-        messageHistory: []
+        messageHistory: [],
+        throughputData: [],
+        lastSecondCount: 0,
+        lastThroughputUpdate: null
     },
 
     init: function() {
@@ -89,9 +92,10 @@ const websocketDemo = {
                 labels: Array.from({length: 10}, (_, i) => `${i}с`),
                 datasets: [{
                     label: 'Сообщений/сек',
-                    data: [],
+                    data: Array(10).fill(0), // Заполняем нулями вместо пустого массива
                     borderColor: 'rgb(54, 162, 235)',
-                    tension: 0.1
+                    tension: 0.1,
+                    fill: false
                 }]
             },
             options: {
@@ -99,7 +103,17 @@ const websocketDemo = {
                 maintainAspectRatio: false,
                 scales: {
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Сообщений в секунду'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Время'
+                        }
                     }
                 }
             }
@@ -126,31 +140,46 @@ const websocketDemo = {
 
         this.updateConnectionStatus('connecting', 'Подключение...');
 
-        const socket = new SockJS('/ws');
-        this.stompClient = Stomp.over(socket);
+        try {
+            // Правильный URL для SockJS
+            const socket = new SockJS('/ws');
+            this.stompClient = Stomp.over(socket);
 
-        this.stompClient.connect({}, (frame) => {
-            this.connected = true;
-            this.data.connectionStart = new Date();
-            this.updateConnectionStatus('connected', 'Подключено');
-            this.updateUI();
-            this.addLog('success', 'WebSocket успешно подключен');
+            // Отключаем debug логирование
+            this.stompClient.debug = null;
 
-            // Subscribe to topics
-            this.stompClient.subscribe('/topic/livedata', (message) => {
-                this.handleLiveData(JSON.parse(message.body));
+            this.stompClient.connect({}, (frame) => {
+                this.connected = true;
+                this.data.connectionStart = new Date();
+                this.updateConnectionStatus('connected', 'Подключено');
+                this.updateUI();
+                this.addLog('success', 'WebSocket успешно подключен');
+
+                // Подписываемся на темы
+                this.stompClient.subscribe('/topic/livedata', (message) => {
+                    this.handleLiveData(JSON.parse(message.body));
+                });
+
+                this.stompClient.subscribe('/topic/statistics', (message) => {
+                    this.handleStatistics(JSON.parse(message.body));
+                });
+
+            }, (error) => {
+                this.connected = false;
+                this.updateConnectionStatus('disconnected', 'Ошибка подключения');
+                this.updateUI();
+                this.addLog('error', `Ошибка подключения WebSocket: ${error}`);
+
+                // Покажем детали ошибки в консоли
+                console.error('WebSocket connection error:', error);
             });
-
-            this.stompClient.subscribe('/topic/statistics', (message) => {
-                this.handleStatistics(JSON.parse(message.body));
-            });
-
-        }, (error) => {
+        } catch (error) {
             this.connected = false;
-            this.updateConnectionStatus('disconnected', 'Ошибка подключения');
+            this.updateConnectionStatus('disconnected', 'Ошибка инициализации');
             this.updateUI();
-            this.addLog('error', `Ошибка подключения: ${error}`);
-        });
+            this.addLog('error', `Ошибка инициализации WebSocket: ${error}`);
+            console.error('WebSocket initialization error:', error);
+        }
     },
 
     disconnect: function() {
@@ -192,18 +221,55 @@ const websocketDemo = {
         this.data.dataPoints++;
         this.data.lastUpdate = new Date();
 
-        // Update main chart
+        // Расчет пропускной способности
+        this.updateThroughput();
+
+        // Остальной код без изменений...
         const timestamp = new Date().toLocaleTimeString();
         this.updateMainChart(timestamp, data.value);
-
-        // Update statistics
         this.updateStatistics();
-
-        // Update frequency analysis (simulated)
         this.updateFrequencyAnalysis(data.value);
-
-        // Add to message log
         this.addLog('info', `Данные: ${data.value.toFixed(2)} (${data.type})`);
+    },
+
+    // Метод для расчета пропускной способности
+    updateThroughput: function() {
+        const now = new Date();
+
+        if (!this.data.lastThroughputUpdate) {
+            this.data.lastThroughputUpdate = now;
+            this.data.lastSecondCount = 0;
+            return;
+        }
+
+        this.data.lastSecondCount++;
+
+        // Обновляем каждую секунду
+        const secondsPassed = (now - this.data.lastThroughputUpdate) / 1000;
+
+        if (secondsPassed >= 1) {
+            const throughput = this.data.lastSecondCount / secondsPassed;
+
+            // Добавляем в данные графика
+            this.data.throughputData.push(throughput);
+            if (this.data.throughputData.length > 10) {
+                this.data.throughputData.shift();
+            }
+
+            // Обновляем график
+            this.updateThroughputChart();
+
+            // Сбрасываем счетчик
+            this.data.lastSecondCount = 0;
+            this.data.lastThroughputUpdate = now;
+        }
+    },
+
+    // Метод для графика пропускной способности
+    updateThroughputChart: function() {
+        const chart = this.charts.throughput;
+        chart.data.datasets[0].data = [...this.data.throughputData];
+        chart.update('none');
     },
 
     handleStatistics: function(stats) {
@@ -212,6 +278,11 @@ const websocketDemo = {
     },
 
     updateMainChart: function(label, value) {
+        if (!this.charts.main) {
+            console.error('Main chart not initialized');
+            return;
+        }
+
         const chart = this.charts.main;
 
         // Add new data point
@@ -228,10 +299,46 @@ const websocketDemo = {
     },
 
     updateFrequencyAnalysis: function(value) {
-        // Simulate frequency analysis based on current value
-        const frequencies = Array.from({length: 5}, () => Math.random() * 100);
-        this.charts.frequency.data.datasets[0].data = frequencies;
-        this.charts.frequency.update('none');
+        // Реальный частотный анализ на основе типа данных
+        const chart = this.charts.frequency;
+        const dataType = document.getElementById('dataType').value;
+
+        let frequencies;
+
+        switch(dataType) {
+            case 'sine':
+                // Для синусоиды - пик на заданной частоте
+                const freq = parseInt(document.getElementById('frequency').value);
+                frequencies = [0, 0, 0, 0, 0];
+                frequencies[freq - 1] = 80 + Math.random() * 20; // Пик на нужной частоте
+                break;
+
+            case 'cosine':
+                // Аналогично синусу
+                const cosFreq = parseInt(document.getElementById('frequency').value);
+                frequencies = [0, 0, 0, 0, 0];
+                frequencies[cosFreq - 1] = 70 + Math.random() * 30;
+                break;
+
+            case 'random':
+                // Случайный шум - равномерное распределение
+                frequencies = Array.from({length: 5}, () => Math.random() * 50 + 20);
+                break;
+
+            case 'sawtooth':
+                // Пилообразный сигнал - гармоники
+                const sawFreq = parseInt(document.getElementById('frequency').value);
+                frequencies = [60, 30, 15, 8, 4].map((v, i) =>
+                    i === sawFreq - 1 ? v : v / (i + 2)
+                );
+                break;
+
+            default:
+                frequencies = [0, 0, 0, 0, 0];
+        }
+
+        chart.data.datasets[0].data = frequencies;
+        chart.update('none');
     },
 
     updateStatistics: function() {

@@ -1,206 +1,51 @@
-# =============================================
-# SPRING BOOT APPLICATION CONFIGURATION
-# =============================================
-
-# Основные настройки приложения
 spring:
   application:
     name: message-brokers-comparison
-
-  # Настройки Web приложения
   web:
     resources:
       cache:
-        period: 0  # Отключаем кэш для разработки
-
-  # Thymeleaf (HTML шаблоны)
+        period: 0
   thymeleaf:
-    cache: false  # Отключаем кэш шаблонов для разработки
-    prefix: classpath:/templates/
-    suffix: .html
-    mode: HTML
-    encoding: UTF-8
+    cache: false
 
-  # Jackson (JSON сериализация)
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
-    deserialization:
-      fail-on-unknown-properties: false
-
-  # ActiveMQ конфигурация
+  # Базовые настройки брокеров
   activemq:
     broker-url: tcp://localhost:61616
     user: admin
     password: admin
-    packages:
-      trust-all: false  # Важно для безопасности!
-
-  # RabbitMQ конфигурация
   rabbitmq:
     host: localhost
     port: 5672
     username: guest
     password: guest
-    virtual-host: /
-
-  # Kafka конфигурация
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
       group-id: message-brokers-group
       auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
-      acks: all
 
-# =============================================
-# OUR CUSTOM BROKER CONFIGURATION
-# =============================================
-
-# Наши кастомные настройки брокеров (связывается с BrokerProperties)
+# Кастомные настройки (дополнительные)
 message:
   broker:
-    # ActiveMQ настройки
-    activemq:
-      url: tcp://localhost:61616
-      queue: test.queue
-      username: admin
-      password: admin
-      connection-timeout-ms: 5000
-
-    # RabbitMQ настройки
-    rabbitmq:
-      host: localhost
-      port: 5672
-      queue: test.queue
-      username: guest
-      password: guest
-      virtual-host: /
-
-    # Kafka настройки
-    kafka:
-      bootstrap-servers: localhost:9092
-      topic: test-topic
-      group-id: test-group
-      session-timeout-ms: 10000
-      auto-commit-interval-ms: 1000
-
-    # WebSocket настройки
     websocket:
       endpoint: localhost
-      port: 8080
-      path: /websocket
+      path: /ws
       allowed-origins: true
-
-    # Общие настройки для всех брокеров
-    common:
-      retry-attempts: 3
-      retry-delay-ms: 1000
-      max-message-size-bytes: 1048576  # 1MB
-      enable-compression: false
-      default-encoding: UTF-8
-
-# =============================================
-# SPRING ACTUATOR (MONITORING)
-# =============================================
 
 management:
   endpoints:
     web:
       exposure:
-        # Какие endpoints доступны через HTTP
-        include: health,info,metrics,env
-    enabled-by-default: true
-
+        include: health,info,metrics
   endpoint:
     health:
-      # Детализация health checks
       show-details: always
-      show-components: always
-    info:
-      enabled: true
-    metrics:
-      enabled: true
-
-  # Health check настройки
-  health:
-    brokers:
-      enabled: true
-    diskspace:
-      enabled: true
-
-# =============================================
-# LOGGING CONFIGURATION
-# =============================================
 
 logging:
   level:
-    # Наши пакеты - подробное логирование
-    com.vyanckus: DEBUG
-
-    # Spring пакеты - только важные сообщения
-    org.springframework: WARN
-    org.springframework.web: WARN
-    org.springframework.boot: INFO
-
-    # Брокеры сообщений - подробно для отладки
-    org.apache.activemq: DEBUG
-    org.springframework.amqp: DEBUG  # RabbitMQ
-    org.apache.kafka: DEBUG
-    org.springframework.kafka: DEBUG
-    org.springframework.web.socket: DEBUG
-
-    # Hibernate/JPA (если будет использоваться)
-    org.hibernate: WARN
-
-  pattern:
-    # Формат логов
-    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-
-  file:
-    # Запись логов в файл
-    name: logs/message-brokers-app.log
-
-  logback:
-    rollingpolicy:
-      max-file-size: 10MB
-      max-history: 7
-
-# =============================================
-# SERVER CONFIGURATION
-# =============================================
+    com.vyanckus: INFO
+    org.springframework.web.socket: DEBUG  # Для отладки WebSocket
+    org.springframework.messaging: DEBUG   # Для отладки messaging
 
 server:
   port: 8080
-  servlet:
-    context-path: /
-  compression:
-    enabled: true
-    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
-    min-response-size: 1024
-
-# =============================================
-# APPLICATION-SPECIFIC SETTINGS
-# =============================================
-
-app:
-  # Настройки benchmark тестов
-  benchmark:
-    default-message-count: 100
-    default-message-size: 1024  # 1KB
-    timeout-ms: 30000  # 30 секунд
-
-  # Настройки WebSocket демо
-  websocket:
-    enabled: true
-    broadcast-interval-ms: 5000  # Интервал broadcast сообщений
-
-  # Настройки UI
-  ui:
-    refresh-interval-ms: 3000  # Интервал обновления статуса брокеров
-    max-messages-display: 50   # Максимум сообщений на странице

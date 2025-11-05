@@ -10,6 +10,9 @@ import com.vyanckus.dto.ReceivedMessage;
 import com.vyanckus.exception.BrokerConnectionException;
 import com.vyanckus.exception.MessageSendException;
 import com.vyanckus.exception.SubscriptionException;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.DescribeTopicsResult;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -25,12 +28,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.Collections;
-import java.util.Properties;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Future;
+import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * Реализация {@link MessageBroker} для Apache Kafka.
@@ -90,7 +89,10 @@ public class KafkaBroker implements MessageBroker {
      * @param brokerProperties конфигурация всех брокеров из application.yml
      */
     public KafkaBroker(BrokerProperties brokerProperties) {
-        this.config = brokerProperties.kafka();
+        this.config = Optional.ofNullable(brokerProperties.kafka())
+                .orElse(new BrokerProperties.KafkaProperties(
+                        "localhost:9092", "test-topic", "test-group", 10000, 1000
+                ));
         log.info("Kafka broker initialized for bootstrap servers: {}", config.bootstrapServers());
     }
 
@@ -145,9 +147,10 @@ public class KafkaBroker implements MessageBroker {
         }
 
         try {
-            // Используем топик из запроса или конфигурации по умолчанию
-            String topicName = request.destination() != null ?
-                    request.destination() : config.topic();
+            String topicName = request.destination() != null ? request.destination() : config.topic();
+
+            // ЯВНО СОЗДАЕМ ТОПИК ПЕРЕД ОТПРАВКОЙ
+            createTopicIfNotExists(topicName);
 
             log.debug("Sending message to topic: {}", topicName);
 
@@ -189,7 +192,6 @@ public class KafkaBroker implements MessageBroker {
             throw new SubscriptionException("Not connected to Kafka. Call connect() first.");
         }
 
-        // Проверяем нет ли уже активной подписки
         if (activeConsumers.containsKey(topic)) {
             log.warn("Already subscribed to topic: {}", topic);
             return;
@@ -198,34 +200,78 @@ public class KafkaBroker implements MessageBroker {
         try {
             log.info("Subscribing to topic: {}", topic);
 
-            // Настройка свойств Consumer
+            // ПРОСТАЯ КОНФИГУРАЦИЯ ДЛЯ ТЕСТА
             Properties props = new Properties();
             props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, config.bootstrapServers());
-            props.put(ConsumerConfig.GROUP_ID_CONFIG,
-                    config.groupId() != null ? config.groupId() : "kafka-group-" + UUID.randomUUID());
+            props.put(ConsumerConfig.GROUP_ID_CONFIG, "test-group-" + topic + "-" + System.currentTimeMillis());
             props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
             props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
             props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
             props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
-            props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, String.valueOf(config.autoCommitIntervalMs()));
 
-            // Создание Consumer
             KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
             consumer.subscribe(Collections.singletonList(topic));
 
-            // Сохраняем Consumer
             activeConsumers.put(topic, consumer);
             consumerRunningFlags.put(topic, true);
 
-            // Запускаем поток для потребления сообщений
-            startConsumerThread(topic, consumer, listener);
+            // ЗАПУСКАЕМ ПРОСТОЙ POLLING
+            startSimpleConsumer(topic, consumer, listener);
 
             log.info("Successfully subscribed to topic: {}", topic);
 
         } catch (Exception e) {
-            String errorMessage = String.format("Failed to subscribe to topic %s", topic);
-            log.error(LOG_FORMAT, errorMessage, e.getMessage(), e);
-            throw new SubscriptionException(errorMessage, e);
+            log.error("Failed to subscribe to topic {}: {}", topic, e.getMessage(), e);
+            throw new SubscriptionException("Failed to subscribe to topic: " + topic, e);
+        }
+    }
+
+    private void startSimpleConsumer(String topic, KafkaConsumer<String, String> consumer, MessageListener listener) {
+        Thread consumerThread = new Thread(() -> {
+            log.info("Simple consumer started for topic: {}", topic);
+
+            try {
+                while (consumerRunningFlags.getOrDefault(topic, false)) {
+                    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
+
+                    for (ConsumerRecord<String, String> record : records) {
+                        log.info("SIMPLE CONSUMER - Received: {}", record.value());
+                        handleIncomingMessage(record, topic, listener);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Simple consumer error for topic {}: {}", topic, e.getMessage());
+            } finally {
+                consumer.close();
+                log.info("Simple consumer stopped for topic: {}", topic);
+            }
+        });
+
+        consumerThread.setDaemon(true);
+        consumerThread.start();
+    }
+
+    private void createTopicIfNotExists(String topicName) {
+        try {
+            // Проверяем существование топика через AdminClient
+            Properties adminProps = new Properties();
+            adminProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, config.bootstrapServers());
+
+            try (AdminClient adminClient = AdminClient.create(adminProps)) {
+                DescribeTopicsResult describeResult = adminClient.describeTopics(Collections.singleton(topicName));
+                describeResult.topicNameValues().get(topicName).get(10, TimeUnit.SECONDS);
+                log.debug("Topic {} already exists", topicName);
+            } catch (ExecutionException e) {
+                // Топик не существует - создаем его
+                log.info("Creating topic: {}", topicName);
+                try (AdminClient adminClient = AdminClient.create(adminProps)) {
+                    NewTopic newTopic = new NewTopic(topicName, 1, (short) 1);
+                    adminClient.createTopics(Collections.singleton(newTopic)).all().get(10, TimeUnit.SECONDS);
+                    log.info("Topic {} created successfully", topicName);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not create topic {}: {}", topicName, e.getMessage());
         }
     }
 
@@ -238,34 +284,40 @@ public class KafkaBroker implements MessageBroker {
      */
     private void startConsumerThread(String topic, KafkaConsumer<String, String> consumer, MessageListener listener) {
         Thread consumerThread = new Thread(() -> {
-            log.debug("Starting consumer thread for topic: {}", topic);
+            log.info("Starting consumer thread for topic: {}", topic);
 
-            boolean isRunning = consumerRunningFlags.getOrDefault(topic, false);
+            try {
+                while (consumerRunningFlags.getOrDefault(topic, false)) {
+                    try {
+                        // Опрашиваем Consumer для получения новых сообщений
+                        ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000)); // Увеличил timeout
 
-            while (isRunning) {
-                try {
-                    // Опрашиваем Consumer для получения новых сообщений
-                    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+                        if (!records.isEmpty()) {
+                            log.debug("Received {} messages from topic: {}", records.count(), topic);
 
-                    for (ConsumerRecord<String, String> consumerRecord : records) {
-                        handleIncomingMessage(consumerRecord, topic, listener);
-                    }
+                            for (ConsumerRecord<String, String> consumerRecord : records) {
+                                handleIncomingMessage(consumerRecord, topic, listener);
+                            }
+                        }
 
-                    isRunning = consumerRunningFlags.getOrDefault(topic, false);
-
-                } catch (Exception e) {
-                    isRunning = consumerRunningFlags.getOrDefault(topic, false);
-
-                    if (isRunning) {
-                        log.error("Error in consumer thread for topic {}: {}", topic, e.getMessage(), e);
+                    } catch (Exception e) {
+                        if (consumerRunningFlags.getOrDefault(topic, false)) {
+                            log.error("Error in consumer thread for topic {}: {}", topic, e.getMessage(), e);
+                            // Не прерываем поток при временных ошибках
+                            try {
+                                Thread.sleep(1000); // Пауза перед повторной попыткой
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                break;
+                            }
+                        }
                     }
                 }
+            } finally {
+                // Гарантированно закрываем Consumer при завершении потока
+                closeConsumer(consumer, topic);
+                log.info("Consumer thread stopped for topic: {}", topic);
             }
-
-            // Закрываем Consumer при завершении потока
-            closeConsumer(consumer, topic);
-
-            log.debug("Consumer thread stopped for topic: {}", topic);
         });
 
         consumerThread.setName("kafka-consumer-" + topic);
@@ -284,27 +336,32 @@ public class KafkaBroker implements MessageBroker {
         try {
             String messageText = consumerRecord.value();
 
-            log.debug("Received message from topic: {} - {}", topic, messageText);
+            log.debug("Kafka received message - Topic: {}, Partition: {}, Offset: {}",
+                    topic, consumerRecord.partition(), consumerRecord.offset());
 
-            // Создаем унифицированное представление сообщения
+            Map<String, Object> properties = new HashMap<>();
+            properties.put("partition", consumerRecord.partition());
+            properties.put("offset", consumerRecord.offset());
+            if (consumerRecord.key() != null) {
+                properties.put("key", consumerRecord.key());
+            }
+            properties.put("timestamp", consumerRecord.timestamp());
+            properties.put("topic", topic);
+
             ReceivedMessage receivedMessage = new ReceivedMessage(
                     BrokersType.KAFKA,
                     topic,
                     messageText,
                     String.format("%s-%d-%d", topic, consumerRecord.partition(), consumerRecord.offset()),
                     java.time.Instant.ofEpochMilli(consumerRecord.timestamp()),
-                    java.util.Map.of(
-                            "partition", consumerRecord.partition(),
-                            "offset", consumerRecord.offset(),
-                            "key", consumerRecord.key()
-                    )
+                    properties
             );
 
-            // Уведомляем обработчик
             listener.onMessage(receivedMessage, topic);
+            log.debug("Successfully processed Kafka message from topic: {}", topic);
 
         } catch (Exception e) {
-            log.error("Error processing message from topic {}: {}", topic, e.getMessage(), e);
+            log.error("Error processing Kafka message from topic {}: {}", topic, e.getMessage(), e);
         }
     }
 

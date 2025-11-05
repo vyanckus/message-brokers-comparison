@@ -1,6 +1,5 @@
 package com.vyanckus.websocket.config;
 
-import com.vyanckus.config.BrokerProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -14,12 +13,6 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    private final BrokerProperties.WebSocketProperties config;
-
-    public WebSocketConfig(BrokerProperties brokerProperties) {
-        this.config = brokerProperties.websocket();
-    }
-
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         // Включаем простой брокер сообщений для тем (topics)
@@ -31,8 +24,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Регистрируем WebSocket endpoint
-        registry.addEndpoint(config.path())
-                .setAllowedOrigins(config.allowedOrigins() ? "*" : "http://localhost:" + config.port())
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*")  // Разрешаем все origins
                 .withSockJS(); // Поддержка SockJS для fallback
     }
 }

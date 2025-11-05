@@ -19,98 +19,59 @@ import java.util.Map;
 public class BrokerHealthIndicator implements HealthIndicator {
 
     private static final Logger log = LoggerFactory.getLogger(BrokerHealthIndicator.class);
-
     private final MessageBrokerFactory brokerFactory;
-    private Map<BrokersType, MessageBroker> brokers;
 
     public BrokerHealthIndicator(MessageBrokerFactory brokerFactory) {
         this.brokerFactory = brokerFactory;
-        initializeBrokers();
-    }
-
-    /**
-     * Инициализация брокеров (ленивая загрузка)
-     */
-    private void initializeBrokers() {
-        try {
-            this.brokers = brokerFactory.createAllBrokers();
-        } catch (Exception e) {
-            this.brokers = Map.of();
-            log.error("Failed to initialize brokers: {}", e.getMessage(), e);
-        }
     }
 
     @Override
     public Health health() {
-        if (brokers.isEmpty()) {
-            return Health.down()
-                    .withDetail("error", "No brokers configured or initialization failed")
-                    .build();
-        }
-
-        Health.Builder healthBuilder = Health.up();
-        int healthyBrokers = 0;
-        int totalBrokers = brokers.size();
-
-        for (Map.Entry<BrokersType, MessageBroker> entry : brokers.entrySet()) {
-            BrokersType brokerType = entry.getKey();
-            MessageBroker broker = entry.getValue();
-
-            try {
-                boolean isHealthy = broker.isHealthy() && broker.isConnected();
-
-                if (isHealthy) {
-                    healthyBrokers++;
-                    healthBuilder.withDetail(brokerType.name().toLowerCase(), "UP");
-                } else {
-                    healthBuilder.withDetail(brokerType.name().toLowerCase(), "DOWN - Not connected");
-                }
-
-            } catch (Exception e) {
-                healthBuilder.withDetail(brokerType.name().toLowerCase(),
-                        "DOWN - " + e.getMessage());
-            }
-        }
-
-        if (healthyBrokers == totalBrokers) {
-            return healthBuilder.build();
-        }
-
-        return healthBuilder
-                .status("DEGRADED")
-                .withDetail("healthyBrokers", healthyBrokers)
-                .withDetail("totalBrokers", totalBrokers)
-                .build();
-    }
-
-    /**
-     * Получить статус конкретного брокера
-     */
-    public Health getBrokerHealth(BrokersType brokerType) {
-        MessageBroker broker = brokers.get(brokerType);
-
-        if (broker == null) {
-            return Health.down()
-                    .withDetail("error", "Broker not found: " + brokerType)
-                    .build();
-        }
-
         try {
-            if (broker.isHealthy() && broker.isConnected()) {
-                return Health.up()
-                        .withDetail("brokerType", brokerType)
-                        .withDetail("connected", true)
-                        .build();
-            } else {
-                return Health.down()
-                        .withDetail("brokerType", brokerType)
-                        .withDetail("connected", false)
+            Map<BrokersType, MessageBroker> brokers = brokerFactory.createAllBrokers();
+
+            if (brokers.isEmpty()) {
+                return Health.unknown()
+                        .withDetail("message", "No brokers configured")
+                        .withDetail("timestamp", java.time.Instant.now())
                         .build();
             }
+
+            Health.Builder healthBuilder = Health.up();
+            int healthyBrokers = 0;
+            int totalBrokers = brokers.size();
+
+            for (Map.Entry<BrokersType, MessageBroker> entry : brokers.entrySet()) {
+                BrokersType brokerType = entry.getKey();
+                MessageBroker broker = entry.getValue();
+
+                try {
+                    if (broker != null && broker.isConnected() && broker.isHealthy()) {
+                        healthyBrokers++;
+                        healthBuilder.withDetail(brokerType.name().toLowerCase(), "UP");
+                    } else {
+                        healthBuilder.withDetail(brokerType.name().toLowerCase(), "DOWN");
+                    }
+                } catch (Exception e) {
+                    healthBuilder.withDetail(brokerType.name().toLowerCase(), "ERROR: " + e.getMessage());
+                }
+            }
+
+            // Если все брокеры здоровы - UP, иначе - DEGRADED
+            if (healthyBrokers == totalBrokers) {
+                return healthBuilder.build();
+            } else {
+                return healthBuilder
+                        .status("DEGRADED")
+                        .withDetail("healthyBrokers", healthyBrokers)
+                        .withDetail("totalBrokers", totalBrokers)
+                        .build();
+            }
+
         } catch (Exception e) {
+            log.warn("Error checking broker health: {}", e.getMessage());
             return Health.down()
-                    .withDetail("brokerType", brokerType)
-                    .withDetail("error", e.getMessage())
+                    .withDetail("error", "Health check failed: " + e.getMessage())
                     .build();
         }
     }

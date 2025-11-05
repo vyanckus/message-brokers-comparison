@@ -244,6 +244,13 @@ public class MessageBrokerService {
     }
 
     /**
+     * Получить конкретный брокер по типу
+     */
+    public MessageBroker getBroker(BrokersType brokerType) {
+        return brokers.get(brokerType);
+    }
+
+    /**
      * Отключает все брокеры и освобождает ресурсы.
      */
     public void shutdown() {

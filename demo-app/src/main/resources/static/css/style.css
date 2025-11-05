@@ -136,3 +136,89 @@ footer {
     color: #dc3545;
     font-weight: bold;
 }
+
+/* Стили для управления брокерами */
+.logs {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    max-height: 120px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+}
+
+.logs-container {
+    max-height: 150px;
+}
+
+.log-entry {
+    margin: 2px 0;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+}
+
+.log-success {
+    color: #198754;
+    background-color: #d1e7dd;
+}
+
+.log-error {
+    color: #dc3545;
+    background-color: #f8d7da;
+}
+
+.log-info {
+    color: #0dcaf0;
+    background-color: #d1ecf1;
+}
+
+.metrics {
+    font-size: 0.85rem;
+}
+
+.metrics div {
+    margin: 2px 0;
+}
+
+/* Статусы брокеров */
+.status-running {
+    background-color: #198754 !important;
+}
+
+.status-stopped {
+    background-color: #dc3545 !important;
+}
+
+.status-error {
+    background-color: #fd7e14 !important;
+}
+
+/* Карточки брокеров */
+.broker-control-card {
+    transition: all 0.3s ease;
+}
+
+.broker-control-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Кнопки управления */
+.btn-group-sm .btn {
+    font-size: 0.75rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .broker-control-card {
+        margin-bottom: 1rem;
+    }
+
+    .logs {
+        max-height: 100px;
+        font-size: 0.7rem;
+    }
+}

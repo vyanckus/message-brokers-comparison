@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -77,7 +78,7 @@ public class WebSocketBroker implements MessageBroker {
      * @param messagingTemplate Spring Messaging Template для WebSocket
      */
     public WebSocketBroker(BrokerProperties brokerProperties, SimpMessagingTemplate messagingTemplate) {
-        this.config = brokerProperties.websocket();
+        this.config = new BrokerProperties.WebSocketProperties("localhost", 8080, "/ws", true);
         this.messagingTemplate = messagingTemplate;
         log.info("WebSocket broker initialized for endpoint: {}:{}", config.endpoint(), config.port());
     }

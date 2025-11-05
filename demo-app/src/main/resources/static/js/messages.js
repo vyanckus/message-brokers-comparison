@@ -171,11 +171,8 @@ class MessagesPage {
             return;
         }
 
-        // Show latest messages first
-        const recentMessages = [...this.messageHistory].reverse().slice(0, 50);
-
         let html = '';
-        recentMessages.forEach(msg => {
+        this.messageHistory.forEach(msg => {
             const time = window.app.formatTimestamp(msg.timestamp);
             const statusBadge = msg.status === 'SENT'
                 ? '<span class="badge bg-success">Отправлено</span>'
@@ -196,11 +193,16 @@ class MessagesPage {
         });
 
         tableBody.innerHTML = html;
-        historyCount.textContent = `Показано ${recentMessages.length} из ${this.messageHistory.length} сообщений`;
+        historyCount.textContent = `Показано ${this.messageHistory.length} сообщений`;
     }
 
     addMessageToHistory(message) {
-        this.messageHistory.push(message);
+        this.messageHistory.unshift(message);
+
+        if (this.messageHistory.length > 100) {
+            this.messageHistory = this.messageHistory.slice(0, 100);
+        }
+
         this.updateHistoryDisplay();
     }
 

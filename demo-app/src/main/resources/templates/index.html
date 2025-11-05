@@ -113,6 +113,133 @@
         </div>
     </div>
 
+    <!-- Управление брокерами и метрики -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3 class="mb-3">
+                <i class="fas fa-cogs me-2"></i>
+                Управление брокерами
+            </h3>
+        </div>
+
+        <!-- RabbitMQ -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-rabbit me-2 text-success"></i>
+                        RabbitMQ
+                    </h5>
+                    <span id="rabbitmq-status" class="badge bg-danger">ОСТАНОВЛЕН</span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <button class="btn btn-success btn-sm me-2" onclick="startBroker('rabbitmq')">
+                            <i class="fas fa-play me-1"></i>Запустить
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="stopBroker('rabbitmq')">
+                            <i class="fas fa-stop me-1"></i>Остановить
+                        </button>
+                    </div>
+                    <div class="input-group mb-3">
+                        <input type="text" id="rabbitmq-message" class="form-control" placeholder="Введите сообщение...">
+                        <button class="btn btn-primary" onclick="sendMessage('rabbitmq')">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="metrics">
+                        <small class="text-muted">Метрики:</small>
+                        <div>Отправлено: <span id="rabbitmq-sent">0</span></div>
+                        <div>Получено: <span id="rabbitmq-received">0</span></div>
+                        <div>Задержка: <span id="rabbitmq-latency">0</span> мс</div>
+                    </div>
+                    <div class="logs-container mt-2">
+                        <small class="text-muted">Логи:</small>
+                        <div id="rabbitmq-logs" class="logs"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kafka -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2 text-warning"></i>
+                        Kafka
+                    </h5>
+                    <span id="kafka-status" class="badge bg-danger">ОСТАНОВЛЕН</span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <button class="btn btn-success btn-sm me-2" onclick="startBroker('kafka')">
+                            <i class="fas fa-play me-1"></i>Запустить
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="stopBroker('kafka')">
+                            <i class="fas fa-stop me-1"></i>Остановить
+                        </button>
+                    </div>
+                    <div class="input-group mb-3">
+                        <input type="text" id="kafka-message" class="form-control" placeholder="Введите сообщение...">
+                        <button class="btn btn-primary" onclick="sendMessage('kafka')">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="metrics">
+                        <small class="text-muted">Метрики:</small>
+                        <div>Отправлено: <span id="kafka-sent">0</span></div>
+                        <div>Получено: <span id="kafka-received">0</span></div>
+                        <div>Задержка: <span id="kafka-latency">0</span> мс</div>
+                    </div>
+                    <div class="logs-container mt-2">
+                        <small class="text-muted">Логи:</small>
+                        <div id="kafka-logs" class="logs"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ActiveMQ -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-feather me-2 text-info"></i>
+                        ActiveMQ
+                    </h5>
+                    <span id="activemq-status" class="badge bg-danger">ОСТАНОВЛЕН</span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <button class="btn btn-success btn-sm me-2" onclick="startBroker('activemq')">
+                            <i class="fas fa-play me-1"></i>Запустить
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="stopBroker('activemq')">
+                            <i class="fas fa-stop me-1"></i>Остановить
+                        </button>
+                    </div>
+                    <div class="input-group mb-3">
+                        <input type="text" id="activemq-message" class="form-control" placeholder="Введите сообщение...">
+                        <button class="btn btn-primary" onclick="sendMessage('activemq')">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="metrics">
+                        <small class="text-muted">Метрики:</small>
+                        <div>Отправлено: <span id="activemq-sent">0</span></div>
+                        <div>Получено: <span id="activemq-received">0</span></div>
+                        <div>Задержка: <span id="activemq-latency">0</span> мс</div>
+                    </div>
+                    <div class="logs-container mt-2">
+                        <small class="text-muted">Логи:</small>
+                        <div id="activemq-logs" class="logs"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Быстрые действия -->
     <div class="row">
         <div class="col-12">

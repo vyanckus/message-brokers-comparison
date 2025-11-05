@@ -1,32 +1,58 @@
 package com.vyanckus.websocket.controller;
 
-import com.vyanckus.websocket.WebSocketBroker;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import java.time.Instant;
+import java.util.Map;
+
 /**
- * WebSocket контроллер для приема сообщений от клиентов.
+ * WebSocket контроллер для обработки сообщений в реальном времени.
  */
 @Controller
 public class WebSocketMessageController {
 
-    private final WebSocketBroker webSocketBroker;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public WebSocketMessageController(WebSocketBroker webSocketBroker) {
-        this.webSocketBroker = webSocketBroker;
+    public WebSocketMessageController(SimpMessagingTemplate messagingTemplate) {
+        this.messagingTemplate = messagingTemplate;
     }
 
     /**
-     * Обрабатывает входящие WebSocket сообщения.
-     *
-     * @param message текст сообщения
-     * @param destination тема сообщения
+     * Обрабатывает сообщения отправленные на /app/livedata
      */
-    @MessageMapping("/send")
-    @SendTo("/topic/messages")
-    public String handleWebSocketMessage(String message, String destination) {
-        webSocketBroker.handleIncomingWebSocketMessage(message, destination);
-        return message;
+    @MessageMapping("/livedata")
+    @SendTo("/topic/livedata")
+    public Map<String, Object> handleLiveData(Map<String, Object> message) {
+        // Добавляем timestamp и обрабатываем сообщение
+        return Map.of(
+                "type", message.get("type"),
+                "value", message.get("value"),
+                "timestamp", Instant.now().toString(),
+                "processed", true
+        );
+    }
+
+    /**
+     * Отправляет тестовые данные в реальном времени
+     */
+    public void sendLiveData(String type, double value) {
+        Map<String, Object> data = Map.of(
+                "type", type,
+                "value", value,
+                "timestamp", Instant.now().toString(),
+                "source", "server"
+        );
+
+        messagingTemplate.convertAndSend("/topic/livedata", data);
+    }
+
+    /**
+     * Отправляет статистику
+     */
+    public void sendStatistics(Map<String, Object> stats) {
+        messagingTemplate.convertAndSend("/topic/statistics", stats);
     }
 }

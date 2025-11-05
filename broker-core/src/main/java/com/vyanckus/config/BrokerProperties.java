@@ -4,42 +4,40 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.Optional;
+
 /**
  * Конфигурационные свойства для всех брокеров сообщений.
- * Автоматически связывается с application.yml
+ * Все настройки опциональны - брокеры будут работать с дефолтными значениями.
  */
 @ConfigurationProperties(prefix = "message.broker")
 @Validated
 public record BrokerProperties(
 
         /**
-         * Настройки для ActiveMQ
+         * Настройки для ActiveMQ (опционально)
          */
-        @NotNull(message = "ActiveMQ configuration is required")
         @Valid
         ActiveMQProperties activemq,
 
         /**
-         * Настройки для RabbitMQ
+         * Настройки для RabbitMQ (опционально)
          */
-        @NotNull(message = "RabbitMQ configuration is required")
         @Valid
         RabbitMQProperties rabbitmq,
 
         /**
-         * Настройки для Kafka
+         * Настройки для Kafka (опционально)
          */
-        @NotNull(message = "Kafka configuration is required")
-        @Valid KafkaProperties kafka,
+        @Valid
+        KafkaProperties kafka,
 
         /**
-         * Настройки для WebSocket
+         * Настройки для WebSocket (опционально)
          */
-        @NotNull(message = "WebSocket configuration is required")
         @Valid
         WebSocketProperties websocket,
 
@@ -48,6 +46,7 @@ public record BrokerProperties(
          */
         @Valid
         CommonProperties common
+
 ) {
 
     /**
@@ -57,18 +56,30 @@ public record BrokerProperties(
             @NotBlank(message = "ActiveMQ URL cannot be blank")
             String url,
 
-            @NotBlank(message = "ActiveMQ queue cannot be blank")
             String queue,
 
-            @NotBlank(message = "ActiveMQ username cannot be blank")
             String username,
 
-            @NotBlank(message = "ActiveMQ password cannot be blank")
             String password,
 
             @Min(value = 1, message = "Timeout must be at least 1ms")
             int connectionTimeoutMs
-    ) {}
+    ) {
+        public ActiveMQProperties {
+            if (queue == null || queue.isBlank()) {
+                queue = "test.queue";
+            }
+            if (username == null || username.isBlank()) {
+                username = "admin";
+            }
+            if (password == null || password.isBlank()) {
+                password = "admin";
+            }
+            if (connectionTimeoutMs == 0) {
+                connectionTimeoutMs = 5000;
+            }
+        }
+    }
 
     /**
      * Настройки RabbitMQ
@@ -81,18 +92,29 @@ public record BrokerProperties(
             @Max(value = 65535, message = "Port must be between 1 and 65535")
             int port,
 
-            @NotBlank(message = "RabbitMQ queue cannot be blank")
             String queue,
 
-            @NotBlank(message = "RabbitMQ username cannot be blank")
             String username,
 
-            @NotBlank(message = "RabbitMQ password cannot be blank")
             String password,
 
-            @NotBlank(message = "RabbitMQ virtual host cannot be blank")
             String virtualHost
-    ) {}
+    ) {
+        public RabbitMQProperties {
+            if (queue == null || queue.isBlank()) {
+                queue = "test.queue";
+            }
+            if (username == null || username.isBlank()) {
+                username = "guest";
+            }
+            if (password == null || password.isBlank()) {
+                password = "guest";
+            }
+            if (virtualHost == null || virtualHost.isBlank()) {
+                virtualHost = "/";
+            }
+        }
+    }
 
     /**
      * Настройки Kafka
@@ -101,7 +123,6 @@ public record BrokerProperties(
             @NotBlank(message = "Kafka bootstrap servers cannot be blank")
             String bootstrapServers,
 
-            @NotBlank(message = "Kafka topic cannot be blank")
             String topic,
 
             String groupId,
@@ -111,24 +132,49 @@ public record BrokerProperties(
 
             @Min(value = 1, message = "Auto commit interval must be at least 1ms")
             int autoCommitIntervalMs
-    ) {}
+    ) {
+        public KafkaProperties {
+            if (topic == null || topic.isBlank()) {
+                topic = "test-topic";
+            }
+            if (groupId == null || groupId.isBlank()) {
+                groupId = "test-group";
+            }
+            if (sessionTimeoutMs == 0) {
+                sessionTimeoutMs = 10000;
+            }
+            if (autoCommitIntervalMs == 0) {
+                autoCommitIntervalMs = 1000;
+            }
+        }
+    }
 
     /**
      * Настройки WebSocket
      */
     public record WebSocketProperties(
-            @NotBlank(message = "WebSocket endpoint cannot be blank")
             String endpoint,
 
             @Min(value = 1, message = "Port must be between 1 and 65535")
             @Max(value = 65535, message = "Port must be between 1 and 65535")
             int port,
 
-            @NotBlank(message = "WebSocket path cannot be blank")
             String path,
 
             boolean allowedOrigins
-    ) {}
+    ) {
+        public WebSocketProperties {
+            if (endpoint == null || endpoint.isBlank()) {
+                endpoint = "localhost";
+            }
+            if (port == 0) {
+                port = 8080;
+            }
+            if (path == null || path.isBlank()) {
+                path = "/websocket";
+            }
+        }
+    }
 
     /**
      * Общие настройки для всех брокеров
@@ -145,13 +191,8 @@ public record BrokerProperties(
 
             boolean enableCompression,
 
-            @NotBlank(message = "Default encoding cannot be blank")
             String defaultEncoding
     ) {
-
-        /**
-         * Конструктор со значениями по умолчанию
-         */
         public CommonProperties {
             if (retryAttempts == 0) retryAttempts = 3;
             if (retryDelayMs == 0) retryDelayMs = 1000;
@@ -162,13 +203,22 @@ public record BrokerProperties(
 
     /**
      * Получить настройки для конкретного брокера по типу
+     * Возвращает Optional - может быть пустым если брокер не настроен
      */
-    public Object getPropertiesForBroker(com.vyanckus.dto.BrokersType brokerType) {
-        return switch (brokerType) {
-            case ACTIVEMQ -> activemq();
-            case RABBITMQ -> rabbitmq();
-            case KAFKA -> kafka();
-            case WEBSOCKET -> websocket();
+    public Optional<Object> getPropertiesForBroker(com.vyanckus.dto.BrokersType brokerType) {
+        Object properties = switch (brokerType) {
+            case ACTIVEMQ -> activemq;
+            case RABBITMQ -> rabbitmq;
+            case KAFKA -> kafka;
+            case WEBSOCKET -> websocket;
         };
+        return Optional.ofNullable(properties);
+    }
+
+    /**
+     * Получить общие настройки или дефолтные
+     */
+    public CommonProperties getCommonProperties() {
+        return common != null ? common : new CommonProperties(3, 1000, 1024 * 1024, false, "UTF-8");
     }
 }

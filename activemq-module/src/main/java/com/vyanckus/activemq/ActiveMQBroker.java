@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Optional;
 
 /**
  * Реализация {@link MessageBroker} для Apache ActiveMQ.
@@ -67,7 +68,14 @@ public class ActiveMQBroker implements MessageBroker {
      * @param brokerProperties конфигурация всех брокеров из application.yml
      */
     public ActiveMQBroker(BrokerProperties brokerProperties) {
-        this.config = brokerProperties.activemq();
+        this.config = Optional.ofNullable(brokerProperties.activemq())
+                .orElse(new BrokerProperties.ActiveMQProperties(
+                        "tcp://localhost:61616",
+                        "test.queue",
+                        "admin",
+                        "admin",
+                        5000
+                ));
         log.info("ActiveMQ broker initialized for URL: {}", config.url());
     }
 

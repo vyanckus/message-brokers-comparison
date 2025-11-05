@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -82,7 +83,10 @@ public class RabbitMQBroker implements MessageBroker {
      * @param brokerProperties конфигурация всех брокеров из application.yml
      */
     public RabbitMQBroker(BrokerProperties brokerProperties) {
-        this.config = brokerProperties.rabbitmq();
+        this.config = Optional.ofNullable(brokerProperties.rabbitmq())
+                .orElse(new BrokerProperties.RabbitMQProperties(
+                        "localhost", 5672, "test.queue", "guest", "guest", "/"
+                ));
         log.info("RabbitMQ broker initialized for: {}:{}", config.host(), config.port());
     }
 
