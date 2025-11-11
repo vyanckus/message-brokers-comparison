@@ -26,9 +26,6 @@ import java.util.stream.Collectors;
  *   <li>Страницы мониторинга и статистики</li>
  *   <li>WebSocket демо с графиками</li>
  * </ul>
- *
- * @author vyanckus
- * @version 1.0
  */
 @Controller
 public class WebController {
@@ -38,6 +35,12 @@ public class WebController {
     private final MessageBrokerService messageBrokerService;
     private final BenchmarkService benchmarkService;
 
+    /**
+     * Конструктор web контроллера приложения.
+     *
+     * @param messageBrokerService сервис для работы с брокерами сообщений
+     * @param benchmarkService сервис для выполнения benchmark тестов
+     */
     public WebController(MessageBrokerService messageBrokerService, BenchmarkService benchmarkService) {
         this.messageBrokerService = messageBrokerService;
         this.benchmarkService = benchmarkService;

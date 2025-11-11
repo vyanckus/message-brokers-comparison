@@ -1,24 +1,55 @@
-# Сравнение брокеров сообщений (Message Brokers Comparison)
+# 🚀 Сравнение брокеров сообщений (Message Brokers Comparison)
 
-![Java](https://img.shields.io/badge/Java-19-orange)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.7-brightgreen)
-![Maven](https://img.shields.io/badge/Maven-3.8%2B-red)
+![Java](https://img.shields.io/badge/Java-19-orange?style=for-the-badge&logo=openjdk)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.7-brightgreen?style=for-the-badge&logo=springboot)
+![Docker](https://img.shields.io/badge/Docker-3.8-blue?style=for-the-badge&logo=docker)
 
-Демонстрационное приложение для сравнения производительности и возможностей различных брокеров сообщений: **ActiveMQ, RabbitMQ, Kafka и WebSocket**.
+**Enterprise-grade платформа для сравнительного анализа производительности брокеров сообщений.** Поддержка ActiveMQ, RabbitMQ, Kafka и WebSocket с унифицированным API и real-time мониторингом.
 
-## 🚀 Возможности
+## 📊 Демо
 
-- **Унифицированный API** для работы с разными брокерами сообщений
-- **Тестирование производительности** - benchmark сравнение пропускной способности
-- **Мониторинг в реальном времени** - статус брокеров, метрики, графики
-- **WebSocket демо** - интерактивные графики с живыми данными
-- **Русскоязычный интерфейс** - удобный веб-интерфейс на русском языке
+<div align="center">
 
-🏗️ Архитектура
----------------
+### 🏠 Главная страница
+![Главная страница](docs/screenshots/main-page.png)
 
-### Модульная структура проекта
+### 📨 Тестирование сообщений
+![Тестирование сообщений](docs/screenshots/messages-page.png)
 
+### ⚡ Benchmark тесты
+![Benchmark тесты](docs/screenshots/benchmark-page.png)
+
+### 📈 Real-time мониторинг
+![Мониторинг](docs/screenshots/monitoring-page.png)
+
+### 🔄 WebSocket демо
+![WebSocket демо](docs/screenshots/websocket-demo.png)
+
+</div>
+
+## 🎯 Возможности
+
+### 🔌 Мульти-брокерная поддержка
+- **ActiveMQ** - JMS-based корпоративный брокер
+- **RabbitMQ** - AMQP с продвинутой маршрутизацией
+- **Kafka** - Высокопроизводительная streaming-платформа
+- **WebSocket** - Real-time веб-коммуникация
+
+### 📊 Производительность и анализ
+- ✅ **Benchmark тестирование** - Сравнение throughput и latency
+- 📈 **Real-time метрики** - Мониторинг в реальном времени
+- 📉 **Интерактивные графики** - Визуализация результатов
+- ⚡ **Load testing** - Тестирование под нагрузкой
+
+### 🛠 Enterprise-функции
+- 🔧 **Унифицированный API** - Единый интерфейс для всех брокеров
+- 🏗 **Модульная архитектура** - Легкое добавление новых брокеров
+- 🚀 **Production-ready** - Health checks, мониторинг, логирование
+- 🔒 **Надежность** - Graceful degradation, retry механизмы
+
+## 🏗 Архитектура
+
+### Модульная структура
 
 ```
 message-brokers-comparison/
@@ -32,181 +63,52 @@ message-brokers-comparison/
 └── 📁 infrastructure/        # Docker конфигурации
 ```
 
-### Архитектурные слои
+### Принципы проектирования и паттерны
+
+#### 🎯 Архитектурные паттерны
+- **Layered Architecture** - Четкое разделение на Presentation, Business, Integration слои
+- **Microservices-ready** - Модульная структура для легкого масштабирования
+- **Hexagonal Architecture** - Ядро системы изолировано от внешних зависимостей
+
+#### 🔧 Паттерны проектирования
+- **Factory Pattern** - `MessageBrokerFactory` для создания экземпляров брокеров
+- **Strategy Pattern** - Интерфейс `MessageBroker` для interchangeable реализаций
+- **Observer Pattern** - `MessageListener` для обработки входящих сообщений
+- **Decorator Pattern** - Добавление метрик и логирования без изменения основной логики
+- **Builder Pattern** - Постепенное создание сложных DTO объектов
+- **Singleton Pattern** - Spring бины для управления состоянием соединений
+
+#### 📐 Принципы SOLID
+- **Single Responsibility** - Каждый класс имеет одну причину для изменений
+- **Open/Closed** - Легкое добавление новых брокеров без изменения существующего кода
+- **Liskov Substitution** - Все брокеры взаимозаменяемы через общий интерфейс
+- **Interface Segregation** - Специализированные интерфейсы для разных аспектов функциональности
+- **Dependency Inversion** - Зависимости направлены к абстракциям, а не реализациям
+
+### 🛠 Технологический стек
+| Слой | Технологии                                 |
+|------|--------------------------------------------|
+| **Backend** | Java 19, Spring Boot 3.5.7, Maven          |
+| **Брокеры** | ActiveMQ, RabbitMQ, Kafka, WebSocket       |
+| **Frontend** | Thymeleaf, Bootstrap 5, Chart.js, JavaScript     |
+| **Инфраструктура** | Docker, Docker Compose     |
+| **Мониторинг** | Spring Actuator, Micrometer, Health Checks |
 
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    УРОВЕНЬ ПРЕДСТАВЛЕНИЯ                        │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌───────────────┐  ┌──────────────┐  ┌─────────────────────┐   │
-│  │  Веб-страницы │  │  REST API    │  │  WebSocket Client   │   │
-│  │ (Thymeleaf)   │  │  Endpoints   │  │   (SockJS/STOMP)    │   │
-│  └───────────────┘  └──────────────┘  └─────────────────────┘   │
-└───────────────────────────────┬─────────────────────────────────┘
-                                │
-┌───────────────────────────────▼─────────────────────────────────┐
-│                    БИЗНЕС-УРОВЕНЬ                               │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐    ┌─────────────────┐                     │
-│  │MessageController│    │ BenchmarkControl│                     │
-│  │  (REST API)     │    │   ler (REST API)│                     │
-│  └─────────────────┘    └─────────────────┘                     │
-│           │                            │                        │
-│  ┌────────▼────────┐         ┌─────────▼────────┐               │
-│  │ MessageBroker   │         │ BenchmarkService │               │
-│  │     Service     │         │                  │               │
-│  └─────────────────┘         └──────────────────┘               │
-└───────────────────────────────┬─────────────────────────────────┘
-                                │
-┌───────────────────────────────▼─────────────────────────────────┐
-│                    УРОВЕНЬ ИНТЕГРАЦИИ                           │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │ MessageBroker   │  │ MessageBroker   │  │ Health Check    │  │
-│  │   Factory       │  │   Interface     │  │   (Actuator)    │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
-│           │                                                     │
-└───────────┬─────────────────────────────────────────────────────┘
-            │
- ┌──────────▼──────────┬───────────┬──────────┬──────────────────┐
- │    ActiveMQBroker   │ RabbitMQ  │ Kafka    │ WebSocketBroker  │
- │    (JMS API)        │ Broker    │ Broker   │ (STOMP/WS)       │
- └─────────────────────┴───────────┴──────────┴──────────────────┘
-```
-
-### Поток данных
-
-text
-
-```
-Клиент (Браузер)
-       │
-       ▼
-Spring MVC Controllers
-       │
-       ▼
-Business Services
-       │
-       ▼
-MessageBrokerFactory ───┐
-       │                │
-       ▼                │
-MessageBroker Interface │
-       │                │
-       ├────────────────┘
-       │
-       ▼
-┌──────────────┬──────────────┬──────────────┬──────────────┐
-│ ActiveMQ     │ RabbitMQ     │   Kafka      │ WebSocket    │
-│Implementation│Implementation│Implementation│Implementation│
-└──────────────┴──────────────┴──────────────┴──────────────┘
-       │                │                │                │
-       ▼                ▼                ▼                ▼
- ActiveMQ Server  RabbitMQ Server  Kafka Cluster  WebSocket Client
-```
-
-### Ключевые компоненты
-
-#### 🎯 Core Components
-
-*   `MessageBroker` \- унифицированный интерфейс для всех брокеров
-
-*   `MessageBrokerFactory` \- фабрика для создания экземпляров брокеров
-
-*   `BrokerProperties` \- централизованная конфигурация
-
-
-#### 🔌 Broker Implementations
-
-*   `ActiveMQBroker` \- JMS-based реализация для Apache ActiveMQ
-
-*   `RabbitMQBroker` \- AMQP-based реализация для RabbitMQ
-
-*   `KafkaBroker` \- High-throughput реализация для Apache Kafka
-
-*   `WebSocketBroker` \- Real-time реализация для WebSocket
-
-
-#### 🌐 Web Layer
-
-*   `WebController` \- обработка HTML страниц (Thymeleaf)
-
-*   `MessageController` \- REST API для работы с сообщениями
-
-*   `BenchmarkController` \- REST API для тестирования производительности
-
-*   `WebSocketConfig` \- конфигурация WebSocket соединений
-
-
-#### ⚙️ Services
-
-*   `MessageBrokerService` \- основной сервис для управления брокерами
-
-*   `BenchmarkService` \- сервис для тестирования производительности
-
-*   `BrokerHealthIndicator` \- health checks для мониторинга
-
-
-### Принципы проектирования
-
-1.  Инверсия зависимостей \- зависимости направлены к абстракциям
-
-2.  Единый интерфейс \- все брокеры реализуют `MessageBroker`
-
-3.  Фабричный паттерн \- централизованное создание брокеров
-
-4.  Модульность \- каждый брокер в отдельном модуле
-
-5.  Graceful degradation \- приложение работает даже если брокеры недоступны
-
-
-Эта архитектура позволяет легко добавлять новые брокеры сообщений и обеспечивает согласованное поведение across different messaging technologies.
-
-## 📋 Поддерживаемые брокеры
-
-| Брокер | Протокол | Сценарии использования | Производительность |
-|--------|----------|------------------------|-------------------|
-| **ActiveMQ** | JMS, AMQP, MQTT | Корпоративная передача сообщений | Средняя |
-| **RabbitMQ** | AMQP 0-9-1 | Сложная маршрутизация, рабочие очереди | Высокая |
-| **Kafka** | Протокол Kafka | Потоковая обработка, Event Sourcing | Очень высокая |
-| **WebSocket** | WebSocket, STOMP | Веб-приложения реального времени | Низкая задержка |
-
-## 🛠️ Технологический стек
-
-### Backend
-- **Java 19**
-- **Spring Boot 3.5.7**
-- **Spring Web MVC**
-- **Spring WebSocket**
-- **Spring Actuator** (мониторинг)
-- **Maven** (сборка)
-
-### Брокеры сообщений
-- **Apache ActiveMQ** (JMS)
-- **RabbitMQ** (AMQP)
-- **Apache Kafka** (распределенный streaming)
-- **WebSocket/STOMP** (real-time)
-
-### Frontend
-- **Thymeleaf** (шаблоны)
-- **Bootstrap 5** (UI компоненты)
-- **Chart.js** (графики)
-- **JavaScript** (интерактивность)
-
-## 📥 Установка и запуск
+## 🚀 Быстрый старт
 
 ### Предварительные требования
-- Java 19 или выше
+- Java 19+
 - Maven 3.8+
-- Docker и Docker Compose
+- Docker & Docker Compose
 
 ### 1. Клонирование репозитория
-```bash
+bash
+```
 git clone https://github.com/vyanckus/message-brokers-comparison.git
 cd message-brokers-comparison
 ```
-### 2\. Запуск брокеров сообщений (через Docker)
+### 2\. Запуск инфраструктуры
 
 bash
 
@@ -215,13 +117,13 @@ cd infrastructure
 docker-compose up -d
 ```
 
-Проверьте что брокеры запустились:
+Проверьте доступность брокеров:
 
-*   ActiveMQ Console: [http://localhost:8161](http://localhost:8161/) (admin/admin)
+*   🔗 ActiveMQ Console: [http://localhost:8161](http://localhost:8161/) (admin/admin)
 
-*   RabbitMQ Console: [http://localhost:15672](http://localhost:15672/) (guest/guest)
+*   🐇 RabbitMQ Console: [http://localhost:15672](http://localhost:15672/) (guest/guest)
 
-*   Kafka: localhost:9092
+*   ⚡ Kafka: [http://localhost:9092](http://localhost:9092/)
 
 
 ### 3\. Сборка и запуск приложения
@@ -241,19 +143,19 @@ mvn spring-boot:run
 
 Откройте в браузере: [http://localhost:8080](http://localhost:8080/)
 
-🎯 Использование приложения
----------------------------
 
-### Главная страница (`/`)
+## 📖 Использование
+
+### 🏠 Главная страница
 
 *   Обзор статуса всех брокеров
 
-*   Быстрый доступ к основным функциям
+*   Быстрое управление подключениями
 
-*   Кнопки управления брокерами
+*   Доступ к основным функциям
 
 
-### Тестирование сообщений (`/messages`)
+### 📨 Тестирование сообщений
 
 *   Отправка сообщений через разные брокеры
 
@@ -262,142 +164,176 @@ mvn spring-boot:run
 *   Просмотр истории сообщений
 
 
-### Benchmark тесты (`/benchmark`)
+### ⚡ Benchmark тесты
 
 *   Сравнение производительности брокеров
 
 *   Настройка параметров тестирования
 
-*   Графики результатов
+*   Графики результатов в реальном времени
 
 
-### Мониторинг (`/monitoring`)
+### 📈 Мониторинг
 
-*   Статус брокеров в реальном времени
+*   Статус брокеров и системные метрики
 
-*   Системные метрики
-
-*   Логи сообщений
-
-
-### WebSocket демо (`/websocket-demo`)
-
-*   Интерактивные графики
-
-*   Генератор тестовых данных
-
-*   Статистика в реальном времени
-
-
-### Состояние системы (`/health`)
-
-*   Health checks всех компонентов
+*   Live-обновление данных
 
 *   Детальная диагностика
 
-*   История состояния
 
-🔧 Конфигурация
----------------
+### 🔄 WebSocket демо
 
-Основные настройки в `demo-app/src/main/resources/application.yml`:
+*   Интерактивные графики с живыми данными
 
-yaml
+*   Генератор тестовых данных
 
-```
-spring:
-    activemq:
-        broker-url: tcp://localhost:61616
-    rabbitmq:
-        host: localhost
-        port: 5672
-    kafka:
-        bootstrap-servers: localhost:9092
- 
-message:
-    broker:
-        websocket:
-            endpoint: localhost      
-            path: /websocket
-```
+*   Real-time статистика
 
-📊 API Endpoints
-----------------
+
+## 🔧 API Endpoints
 
 ### Управление сообщениями
 
-*   `POST /api/messages/initialize` \- инициализация брокеров
+http
 
-*   `POST /api/messages/send` \- отправка сообщения
-
-*   `POST /api/messages/subscribe/{brokerType}` \- подписка на сообщения
-
-*   `GET /api/messages/history` \- история сообщений
-
+```
+POST   /api/messages/initialize                   # Инициализация всех брокеров
+POST   /api/messages/send                         # Отправка сообщения
+POST   /api/messages/subscribe/{brokerType}       # Подписка на сообщения
+POST   /api/messages/{brokerType}/start           # Запуск конкретного брокера
+POST   /api/messages/{brokerType}/stop            # Остановка конкретного брокера
+POST   /api/messages/{brokerType}/send            # Отправка через конкретный брокер
+GET    /api/messages/status                       # Статус всех брокеров
+GET    /api/messages/history                      # История сообщений
+GET    /api/messages/metrics                      # Детальные метрики брокеров
+DELETE /api/messages/history                      # Очистка истории сообщений
+```
 
 ### Benchmark тесты
 
-*   `POST /api/benchmark/run` \- запуск синхронного теста
+http
 
-*   `POST /api/benchmark/start-async` \- запуск асинхронного теста
+```
+POST   /api/benchmark/run                         # Синхронный benchmark тест
+POST   /api/benchmark/start-async                 # Асинхронный benchmark тест
+POST   /api/benchmark/stop/{benchmarkId}          # Остановка конкретного теста
+POST   /api/benchmark/stop-all                    # Остановка всех тестов
+GET    /api/benchmark/status                      # Статус активных тестов
+GET    /api/benchmark/info                        # Информация о сервисе
+```
 
-*   `GET /api/benchmark/status` \- статус активных тестов
+### Мониторинг и метрики
+
+http
+
+```
+GET    /api/metrics/brokers                      # Метрики производительности брокеров
+GET    /api/metrics/system                       # Системные метрики JVM
+GET    /actuator/health                          # Health checks (Spring Actuator)
+GET    /actuator/metrics                         # Все метрики приложения
+GET    /actuator/info                            # Информация о приложении
+```
+
+### WebSocket Endpoints
+
+http
+
+```
+WS     /ws                                      # WebSocket endpoint
+POST   /app/websocket/control                   # Управление генератором данных
+POST   /app/websocket/chart                     # Запрос данных для графиков
+POST   /app/websocket/status                    # Проверка статуса генератора
+POST   /app/chat                                # Чат сообщения
+POST   /app/livedata                            # Real-time данные
+POST   /app/broker-data                         # Данные для интеграции с брокерами
+SUB    /topic/livedata                          # Подписка на реальные данные
+SUB    /topic/chartdata                         # Подписка на данные графиков
+SUB    /topic/generator-status                  # Статус генератора
+SUB    /topic/chat                              # Чат сообщения
+SUB    /topic/performance                       # Данные производительности
+SUB    /topic/statistics                        # Статистика брокеров
+```
 
 
-### Мониторинг
+## 📚 Документация
 
-*   `GET /api/messages/status` \- статус брокеров
+### Генерация Javadoc
 
-*   `GET /api/messages/metrics` \- метрики производительности
+Проект содержит полную Javadoc документацию для всех основных компонентов:
 
-*   `GET /actuator/health` \- health checks (Spring Actuator)
+bash
+
+```
+# Генерация документации для всего проекта
+mvn javadoc:aggregate
+
+# Документация будет доступна по пути:
+# target/site/apidocs/index.html
+```
+
+### Структура документации
+
+*   Модуль shared-dto \- Data Transfer Objects для взаимодействия между модулями
+
+*   Модуль broker-core \- Ядро системы с интерфейсами брокеров и фабриками
+
+*   Модуль demo-app \- Spring Boot приложение с REST API и Web интерфейсом
+
+*   Модули брокеров \- Реализации для ActiveMQ, RabbitMQ, Kafka и WebSocket
 
 
-🐛 Поиск и устранение неисправностей
-------------------------------------
+### Особенности документации
+
+*   Полное описание всех классов, методов и их параметров
+
+*   Примеры использования API
+
+*   Диаграммы взаимодействия компонентов
+
+*   Описание архитектурных решений и паттернов
+
+
+🐛 Troubleshooting
+------------------
 
 ### Проблемы с подключением к брокерам
 
-1.  Убедитесь что Docker контейнеры запущены: `docker ps`
+bash
 
-2.  Проверьте порты: 61616 (ActiveMQ), 5672 (RabbitMQ), 9092 (Kafka)
+```
+# Проверка статуса контейнеров
+docker ps
 
-3.  Проверьте логи приложения на предмет ошибок подключения
-
+# Просмотр логов
+docker logs activemq
+docker logs rabbitmq
+docker logs kafka
+```
 
 ### Проблемы с WebSocket
 
-1.  Убедитесь что браузер поддерживает WebSocket
+*   Убедитесь, что браузер поддерживает WebSocket
 
-2.  Проверьте настройки CORS в конфигурации
+*   Проверьте консоль браузера (F12) на наличие ошибок
 
-3.  Посмотрите логи браузера (F12 → Console)
+*   Проверьте настройки CORS
 
 
 ### Проблемы со сборкой
 
-1.  Очистите проект: `mvn clean`
+bash
 
-2.  Обновите зависимости: `mvn dependency:resolve`
+```
+# Очистка проекта
+mvn clean
 
-3.  Проверьте версию Java: `java -version`
+# Обновление зависимостей
+mvn dependency:resolve
 
-
-🤝 Вклад в проект
------------------
-
-Приветствуются contributions! Для внесения изменений:
-
-1.  Форкните репозиторий
-
-2.  Создайте feature branch: `git checkout -b feature/amazing-feature`
-
-3.  Сделайте commit изменений: `git commit -m 'Add amazing feature'`
-
-4.  Push в branch: `git push origin feature/amazing-feature`
-
-5.  Откройте Pull Request
-
+# Проверка версии Java
+java -version
+```
 
 
 👨‍💻 Автор

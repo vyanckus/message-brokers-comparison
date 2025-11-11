@@ -11,24 +11,20 @@ class BenchmarkPage {
         this.updateMessageCountDisplay();
         this.loadActiveBenchmarks();
 
-        // Auto-refresh active benchmarks every 5 seconds
         setInterval(() => this.loadActiveBenchmarks(), 5000);
     }
 
     setupEventListeners() {
-        // Benchmark configuration form
         const benchmarkForm = document.getElementById('benchmarkConfigForm');
         if (benchmarkForm) {
             benchmarkForm.addEventListener('submit', (e) => this.handleRunBenchmark(e));
         }
 
-        // Message count slider
         const messageCountSlider = document.getElementById('messageCount');
         if (messageCountSlider) {
             messageCountSlider.addEventListener('input', () => this.updateMessageCountDisplay());
         }
 
-        // Test type change
         document.querySelectorAll('input[name="testType"]').forEach(radio => {
             radio.addEventListener('change', () => this.updateTestType());
         });
@@ -157,7 +153,6 @@ class BenchmarkPage {
         const messageCount = parseInt(document.getElementById('messageCount').value);
         const selectedBrokers = this.getSelectedBrokers();
 
-        // ДЕЛАЕМ РЕЗУЛЬТАТЫ СЛУЧАЙНЫМИ НА ОСНОВЕ ПАРАМЕТРОВ
         const demoResults = [];
 
         selectedBrokers.forEach(broker => {
@@ -350,7 +345,6 @@ class BenchmarkPage {
             return;
         }
 
-        // Calculate summary statistics
         const successfulTests = this.benchmarkResults.filter(r => r.status === 'SUCCESS').length;
         const totalTests = this.benchmarkResults.length;
         const bestPerformer = this.findBestPerformer();
@@ -389,7 +383,6 @@ class BenchmarkPage {
 
         chartsSection.style.display = 'block';
 
-        // Simple bar chart using HTML/CSS (can be enhanced with Chart.js later)
         this.renderSimpleBarChart('throughputChart', 'Throughput (msg/s)', 'messagesPerSecond');
         this.renderSimpleBarChart('successRateChart', 'Success Rate (%)', 'successRate');
     }
@@ -469,7 +462,6 @@ class BenchmarkPage {
     }
 }
 
-// Global functions
 function initializeBrokers() {
     window.app.apiCall('/messages/initialize', { method: 'POST' })
         .then(data => {
@@ -486,23 +478,19 @@ function initializeBrokers() {
 }
 
 function runQuickBenchmark() {
-    // Select all connected brokers
     document.querySelectorAll('.broker-checkbox').forEach(checkbox => {
         checkbox.checked = !checkbox.disabled;
     });
 
-    // Set quick test parameters
     document.getElementById('messageCount').value = 100;
     document.getElementById('destination').value = 'benchmark-queue';
     document.getElementById('syncTest').checked = true;
 
-    // Update display
     if (window.benchmarkPage) {
         window.benchmarkPage.updateMessageCountDisplay();
         window.benchmarkPage.updateTestType();
     }
 
-    // Submit form
     document.getElementById('benchmarkConfigForm').dispatchEvent(new Event('submit'));
 }
 
@@ -514,7 +502,6 @@ function stopAllBenchmarks() {
 
 function refreshResults() {
     window.app.showSuccess('Результаты обновлены');
-    // In a real app, this would reload results from server
 }
 
 function clearResults() {
@@ -529,7 +516,6 @@ function clearResults() {
     }
 }
 
-// Initialize benchmark page when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     window.benchmarkPage = new BenchmarkPage();
 });

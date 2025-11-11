@@ -7,7 +7,9 @@ import com.vyanckus.dto.MessageResponse;
 import com.vyanckus.dto.ReceivedMessage;
 import com.vyanckus.exception.BrokerConnectionException;
 import com.vyanckus.exception.MessageSendException;
+import com.vyanckus.metrics.BrokerMetrics;
 import com.vyanckus.service.MessageBrokerService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -30,37 +32,47 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *   <li>Мониторинга статуса брокеров</li>
  *   <li>Получения истории сообщений</li>
  * </ul>
- *
- * @author vyanckus
- * @version 1.0
  */
 @RestController
 @RequestMapping("/api/messages")
 public class MessageController {
 
     private static final Logger log = LoggerFactory.getLogger(MessageController.class);
+    private static final int MAX_HISTORY_SIZE = 100;
 
     private final MessageBrokerService messageBrokerService;
+    private final BrokerMetrics brokerMetrics;
 
     /**
      * История полученных сообщений для API.
      */
     private final List<ReceivedMessage> messageHistory = new CopyOnWriteArrayList<>();
 
-    public MessageController(MessageBrokerService messageBrokerService) {
+    /**
+     * Конструктор контроллера работы с сообщениями.
+     *
+     * @param messageBrokerService сервис для работы с брокерами сообщений
+     * @param brokerMetrics компонент для сбора метрик брокеров
+     */
+    public MessageController(MessageBrokerService messageBrokerService, BrokerMetrics brokerMetrics) {
         this.messageBrokerService = messageBrokerService;
+        this.brokerMetrics = brokerMetrics;
+        // Регистрируем себя как слушателя сообщений
         this.messageBrokerService.addMessageListener(this::handleReceivedMessage);
         log.info("MessageController initialized");
     }
 
     /**
      * Инициализирует все брокеры сообщений.
+     * Должен быть вызван перед использованием других endpoints.
      *
-     * @return ResponseEntity с результатом инициализации
+     * @return результат инициализации с временной меткой
      */
     @PostMapping("/initialize")
     public ResponseEntity<Map<String, Object>> initializeBrokers() {
         try {
+            validateServiceNotInitialized();
+
             messageBrokerService.initialize();
             Map<String, Object> response = Map.of(
                     "status", "SUCCESS",
@@ -70,22 +82,25 @@ public class MessageController {
             log.info("Brokers initialization requested via API");
             return ResponseEntity.ok(response);
         } catch (BrokerConnectionException e) {
+            log.error("Brokers initialization failed: {}", e.getMessage());
             return createErrorResponse("Failed to initialize brokers: " + e.getMessage());
+        } catch (IllegalStateException e) {
+            return createErrorResponse(e.getMessage());
         }
     }
 
     /**
      * Отправляет сообщение через указанный брокер.
+     * Поддерживает все типы брокеров через единый интерфейс.
      *
      * @param request запрос на отправку сообщения
-     * @return ResponseEntity с результатом отправки
+     * @return результат отправки с ID сообщения и метаданными
      */
     @PostMapping("/send")
-    public ResponseEntity<Map<String, Object>> sendMessage(@RequestBody MessageRequest request) {
-        if (!messageBrokerService.isInitialized()) {
-            return createErrorResponse("Message brokers not initialized. Call /api/messages/initialize first.");
-        }
+    public ResponseEntity<Map<String, Object>> sendMessage(@Valid @RequestBody MessageRequest request) {
         try {
+            validateServiceInitialized();
+
             MessageResponse response = messageBrokerService.sendMessage(request);
             Map<String, Object> successResponse = Map.of(
                     "status", "SUCCESS",
@@ -97,7 +112,34 @@ public class MessageController {
             log.debug("Message sent via {} broker to: {}", request.brokerType(), request.destination());
             return ResponseEntity.ok(successResponse);
         } catch (MessageSendException e) {
+            log.error("Message sending failed: {}", e.getMessage());
             return createErrorResponse("Failed to send message: " + e.getMessage());
+        } catch (IllegalStateException e) {
+            return createErrorResponse(e.getMessage());
+        }
+    }
+
+    /**
+     * Проверяет инициализирован ли сервис брокеров.
+     * Выбрасывает исключение если брокеры не инициализированы.
+     *
+     * @throws IllegalStateException если сервис брокеров не инициализирован
+     */
+    private void validateServiceInitialized() {
+        if (!messageBrokerService.isInitialized()) {
+            throw new IllegalStateException("Message brokers not initialized. Call /api/messages/initialize first.");
+        }
+    }
+
+    /**
+     * Проверяет что сервис брокеров еще не инициализирован.
+     * Выбрасывает исключение если брокеры уже инициализированы.
+     *
+     * @throws IllegalStateException если сервис брокеров уже инициализирован
+     */
+    private void validateServiceNotInitialized() {
+        if (messageBrokerService.isInitialized()) {
+            throw new IllegalStateException("Message brokers already initialized");
         }
     }
 
@@ -109,13 +151,10 @@ public class MessageController {
      * @return ResponseEntity с результатом подписки
      */
     @PostMapping("/subscribe/{brokerType}")
-    public ResponseEntity<Map<String, Object>> subscribe(
-            @PathVariable BrokersType brokerType,
-            @RequestParam String destination) {
-        if (!messageBrokerService.isInitialized()) {
-            return createErrorResponse("Message brokers not initialized. Call /api/messages/initialize first.");
-        }
+    public ResponseEntity<Map<String, Object>> subscribe(@PathVariable BrokersType brokerType, @RequestParam String destination) {
         try {
+            validateServiceInitialized();
+
             messageBrokerService.subscribe(brokerType, destination);
             Map<String, Object> response = Map.of(
                     "status", "SUCCESS",
@@ -132,14 +171,6 @@ public class MessageController {
     }
 
     /**
-     * Получить конкретный брокер
-     */
-    public MessageBroker getBroker(BrokersType brokerType) {
-        // Нужно добавить этот метод в MessageBrokerService
-        return messageBrokerService.getBroker(brokerType);
-    }
-
-    /**
      * Запуск конкретного брокера (реальная реализация)
      */
     @PostMapping("/{brokerType}/start")
@@ -151,9 +182,7 @@ public class MessageController {
                 return createErrorResponse("Unknown broker type: " + brokerType);
             }
 
-            if (!messageBrokerService.isInitialized()) {
-                return createErrorResponse("Message brokers not initialized. Call /api/messages/initialize first.");
-            }
+            validateServiceInitialized();
 
             // Получаем брокер и подключаем его
             MessageBroker broker = messageBrokerService.getBroker(type);
@@ -192,9 +221,7 @@ public class MessageController {
                 return createErrorResponse("Unknown broker type: " + brokerType);
             }
 
-            if (!messageBrokerService.isInitialized()) {
-                return createErrorResponse("Message brokers not initialized");
-            }
+            validateServiceInitialized();
 
             MessageBroker broker = messageBrokerService.getBroker(type);
             if (broker != null && broker.isConnected()) {
@@ -229,9 +256,8 @@ public class MessageController {
      * Отправка сообщения через конкретный брокер (упрощенная версия для frontend)
      */
     @PostMapping("/{brokerType}/send")
-    public ResponseEntity<Map<String, Object>> sendMessageToBroker(
-            @PathVariable String brokerType,
-            @RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> sendMessageToBroker(@PathVariable String brokerType,
+                                                                   @RequestBody Map<String, String> request) {
 
         try {
             // Конвертируем строку в enum
@@ -240,9 +266,7 @@ public class MessageController {
                 return createErrorResponse("Unknown broker type: " + brokerType);
             }
 
-            if (!messageBrokerService.isInitialized()) {
-                return createErrorResponse("Message brokers not initialized. Call /api/messages/initialize first.");
-            }
+            validateServiceInitialized();
 
             String message = request.get("message");
             String destination = request.get("destination") != null ? request.get("destination") : "test.queue";
@@ -322,20 +346,30 @@ public class MessageController {
             Map<BrokersType, Boolean> status = messageBrokerService.getBrokersStatus();
             Map<BrokersType, Boolean> health = messageBrokerService.getBrokersHealth();
 
+            boolean isInitialized = messageBrokerService.isInitialized();
+
             // Собираем детальные метрики для каждого брокера
             for (BrokersType brokerType : BrokersType.values()) {
                 Map<String, Object> brokerMetrics = new HashMap<>();
 
-                // Базовый статус
-                brokerMetrics.put("status", status.getOrDefault(brokerType, false) ? "RUNNING" : "STOPPED");
-                brokerMetrics.put("health", health.getOrDefault(brokerType, false));
+                if (!isInitialized) {
+                    brokerMetrics.put("status", "NOT_INITIALIZED");
+                    brokerMetrics.put("health", false);
+                    brokerMetrics.put("messagesSent", 0);
+                    brokerMetrics.put("messagesReceived", 0);
+                    brokerMetrics.put("averageLatency", 0);
+                } else {
+                    // Базовый статус
+                    brokerMetrics.put("status", status.getOrDefault(brokerType, false) ? "RUNNING" : "STOPPED");
+                    brokerMetrics.put("health", health.getOrDefault(brokerType, false));
 
-                // Метрики производительности (заглушки - нужно реализовать в сервисе)
-                brokerMetrics.put("messagesSent", getMessageCount(brokerType));
-                brokerMetrics.put("messagesReceived", getReceivedMessageCount(brokerType));
-                brokerMetrics.put("averageLatency", getAverageLatency(brokerType));
+                    // Метрики производительности (заглушки - нужно реализовать в сервисе)
+                    brokerMetrics.put("messagesSent", getMessageCount(brokerType));
+                    brokerMetrics.put("messagesReceived", getReceivedMessageCount(brokerType));
+                    brokerMetrics.put("averageLatency", getAverageLatency(brokerType));
+                }
+
                 brokerMetrics.put("lastActivity", java.time.Instant.now().toString());
-
                 metrics.put(brokerType.name().toLowerCase(), brokerMetrics);
             }
 
@@ -375,7 +409,8 @@ public class MessageController {
     }
 
     /**
-     * Обрабатывает полученное сообщение и сохраняет в историю.
+     * Обрабатывает полученное сообщение от любого брокера.
+     * Сохраняет сообщение в историю и обеспечивает thread-safe доступ.
      *
      * @param message полученное сообщение
      * @param destination назначение сообщения
@@ -386,7 +421,7 @@ public class MessageController {
             messageHistory.add(message);
 
             // Ограничиваем размер истории (последние 100 сообщений)
-            if (messageHistory.size() > 100) {
+            if (messageHistory.size() > MAX_HISTORY_SIZE) {
                 messageHistory.remove(0);
             }
 
@@ -413,18 +448,27 @@ public class MessageController {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }
 
-
-
-    // Временные заглушки для метрик
-    private int getMessageCount(BrokersType brokerType) {
-        return (int) (Math.random() * 100);
+    /**
+     * Возвращает реальное количество отправленных сообщений для брокера.
+     * Использует BrokerMetrics для получения актуальных данных.
+     */
+    private long getMessageCount(BrokersType brokerType) {
+        return brokerMetrics.getSentMessageCount(brokerType);
     }
 
-    private int getReceivedMessageCount(BrokersType brokerType) {
-        return (int) (Math.random() * 80);
+    /**
+     * Возвращает реальное количество полученных сообщений для брокера.
+     * Использует BrokerMetrics для получения актуальных данных.
+     */
+    private long getReceivedMessageCount(BrokersType brokerType) {
+        return brokerMetrics.getReceivedMessageCount(brokerType);
     }
 
-    private long getAverageLatency(BrokersType brokerType) {
-        return (long) (Math.random() * 50);
+    /**
+     * Возвращает реальную среднюю задержку для брокера.
+     * Использует BrokerMetrics для получения актуальных данных.
+     */
+    private double getAverageLatency(BrokersType brokerType) {
+        return brokerMetrics.getAverageLatency(brokerType);
     }
 }

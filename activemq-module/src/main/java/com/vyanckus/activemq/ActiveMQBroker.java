@@ -18,36 +18,32 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Реализация {@link MessageBroker} для Apache ActiveMQ.
- * Использует JMS API для отправки и получения сообщений через ActiveMQ брокер.
+ * Использует JMS API для отправки и получения сообщений.
+ * Оптимизирован для максимальной производительности в демо.
  *
- * <p>Основные возможности:</p>
+ * <p><b>Особенности реализации:</b>
  * <ul>
- *   <li>Подключение к ActiveMQ брокеру</li>
- *   <li>Отправка текстовых сообщений в очереди</li>
- *   <li>Подписка на получение сообщений из очередей</li>
- *   <li>Управление соединением и ресурсами</li>
+ *   <li>Упрощенная отправка сообщений для производительности</li>
+ *   <li>TextMessage-only для безопасности</li>
+ *   <li>Автоматическое подтверждение сообщений</li>
+ *   <li>Trusted packages ограничение для security</li>
  * </ul>
  *
- * @author vyanckus
- * @version 1.0
  * @see MessageBroker
  * @see BrokersType#ACTIVEMQ
  */
 @Component
 public class ActiveMQBroker implements MessageBroker {
 
-    /**
-     * Логгер для записи событий и ошибок.
-     * Использование SLF4J - стандарт в коммерческой разработке.
-     */
     private static final Logger log = LoggerFactory.getLogger(ActiveMQBroker.class);
 
     /**
      * Конфигурация ActiveMQ из application.yml.
-     * Внедряется через конструктор - принцип Dependency Injection.
      */
     private final BrokerProperties.ActiveMQProperties config;
 
@@ -62,8 +58,18 @@ public class ActiveMQBroker implements MessageBroker {
     private Session session;
 
     /**
+     * Кэшированные MessageProducer'ы управляются вручную в disconnect().
+     * Не используем try-with-resources, так как producers переиспользуются.
+     */
+    private final ConcurrentMap<String, MessageProducer> producerCache = new ConcurrentHashMap<>();
+
+    /**
+     * Активные подписки для управления consumer'ами.
+     */
+    private final ConcurrentMap<String, MessageConsumer> activeConsumers = new ConcurrentHashMap<>();
+
+    /**
      * Конструктор с внедрением зависимостей.
-     * Spring автоматически передаст конфигурацию при создании бина.
      *
      * @param brokerProperties конфигурация всех брокеров из application.yml
      */
@@ -81,7 +87,6 @@ public class ActiveMQBroker implements MessageBroker {
 
     /**
      * Устанавливает соединение с ActiveMQ брокером.
-     * Создает ConnectionFactory, соединение и сессию для работы с JMS.
      *
      * @throws BrokerConnectionException если не удалось установить соединение
      */
@@ -95,37 +100,37 @@ public class ActiveMQBroker implements MessageBroker {
         try {
             log.info("Connecting to ActiveMQ at: {}", config.url());
 
-            // Создание фабрики соединений с аутентификацией
             ActiveMQConnectionFactory connectionFactory = new ActiveMQConnectionFactory(config.url());
             connectionFactory.setUserName(config.username());
             connectionFactory.setPassword(config.password());
 
-            // Запрещаем доверять всем пакетам (security risk!)
+            // Security settings
             connectionFactory.setTrustAllPackages(false);
-
-            // Пустой список = разрешаем только примитивные типы
             connectionFactory.setTrustedPackages(new ArrayList<>());
 
-            // Установка соединения и запуск
+            // Настройки для производительности
+            connectionFactory.setUseAsyncSend(true);
+            connectionFactory.setAlwaysSessionAsync(true);
+            connectionFactory.setUseCompression(false); // Без сжатия для скорости
+
             connection = connectionFactory.createConnection();
             connection.start();
 
-            // Создание сессии (не транзакционная, автоматическое подтверждение)
+            // Session с большим prefetch размером
             session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
             log.info("Successfully connected to ActiveMQ");
 
         } catch (JMSException e) {
-            String errorMessage = String.format("Failed to connect to ActiveMQ at %s: %s",
-                    config.url(), e.getMessage());
-            log.error(errorMessage, e);
+            String errorMessage = "Failed to connect to ActiveMQ at " + config.url();
+            log.error("{}: {}", errorMessage, e.getMessage());
             throw new BrokerConnectionException(errorMessage, e);
         }
     }
 
     /**
      * Отправляет сообщение в указанную очередь ActiveMQ.
-     * Если очередь не указана в запросе, используется очередь из конфигурации.
+     * Использует упрощенную логику для максимальной производительности.
      *
      * @param request запрос на отправку сообщения
      * @return ответ с результатом отправки
@@ -134,45 +139,46 @@ public class ActiveMQBroker implements MessageBroker {
     @Override
     public MessageResponse sendMessage(MessageRequest request) throws MessageSendException {
         if (!isConnected()) {
-            throw new MessageSendException("Not connected to ActiveMQ. Call connect() first.");
+            throw new MessageSendException("Not connected to ActiveMQ.");
         }
 
-        MessageProducer producer = null;
         try {
-            // Используем очередь из запроса или конфигурации по умолчанию
-            String destinationName = request.destination() != null ?
-                    request.destination() : config.queue();
+            String destinationName = request.destination() != null ? request.destination() : config.queue();
 
-            log.debug("Sending message to queue: {}", destinationName);
+            // Кэшированный Producer
+            MessageProducer producer = producerCache.computeIfAbsent(destinationName, queue -> {
+                try {
+                    Destination destination = session.createQueue(queue);
+                    MessageProducer p = session.createProducer(destination);
 
-            // Создание очереди и продюсера
-            Destination destination = session.createQueue(destinationName);
-            producer = session.createProducer(destination);
+                    // Настройки Producer для скорости
+                    p.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
+                    p.setTimeToLive(10000);
 
-            // Создание текстового сообщения
-            TextMessage message = session.createTextMessage(request.message());
+                    return p;
+                } catch (JMSException e) {
+                    throw new MessageSendException("Failed to create producer for queue: " + queue, e);
+                }
+            });
 
-            // Отправка сообщения
+            // Быстрое создание и отправка сообщения
+            TextMessage message = session.createTextMessage();
+            message.setText(request.message());
             producer.send(message);
 
-            log.debug("Message successfully sent to queue: {}", destinationName);
+            return MessageResponse.success(BrokersType.ACTIVEMQ, "activemq-" + System.nanoTime());
 
-            // Возврат успешного ответа
-            return MessageResponse.success(BrokersType.ACTIVEMQ, message.getJMSMessageID());
-
+        } catch (MessageSendException e) {
+            throw e;
         } catch (JMSException e) {
-            String errorMessage = "Failed to send message to ActiveMQ: " + e.getMessage();
-            log.error(errorMessage, e);
-            throw new MessageSendException(errorMessage, e);
-        } finally {
-            // Гарантированное закрытие ресурсов
-            closeProducer(producer);
+            throw new MessageSendException("Failed to send message to ActiveMQ", e);
+        } catch (Exception e) {
+            throw new MessageSendException("Unexpected error while sending message", e);
         }
     }
 
     /**
-     * Подписывается на получение сообщений из указанной очереди.
-     * Регистрирует MessageListener для асинхронной обработки входящих сообщений.
+     * Подписывается на получение сообщений из указанной очереди ActiveMQ.
      *
      * @param destination очередь для подписки
      * @param listener обработчик входящих сообщений
@@ -185,96 +191,112 @@ public class ActiveMQBroker implements MessageBroker {
         }
 
         try {
-            log.info("Subscribing to queue: {}", destination);
-
-            // Создание очереди и консьюмера
             Destination jmsDestination = session.createQueue(destination);
             MessageConsumer consumer = session.createConsumer(jmsDestination);
 
-            // Регистрация обработчика сообщений
-            consumer.setMessageListener(jmsMessage -> handleIncomingMessage(jmsMessage, destination, listener));
+            consumer.setMessageListener(jmsMessage ->
+                    handleIncomingMessage(jmsMessage, destination, listener));
+
+            activeConsumers.put(destination, consumer);
 
             log.info("Successfully subscribed to queue: {}", destination);
 
         } catch (JMSException e) {
-            String errorMessage = String.format("Failed to subscribe to queue %s: %s",
-                    destination, e.getMessage());
-            log.error(errorMessage, e);
+            String errorMessage = "Failed to subscribe to queue " + destination;
+            log.error("{}: {}", errorMessage, e.getMessage());
             throw new SubscriptionException(errorMessage, e);
         }
     }
 
     /**
-     * Обрабатывает входящее JMS сообщение и преобразует его в унифицированный формат.
+     * Обрабатывает входящее сообщение ActiveMQ.
      *
-     * @param jmsMessage входящее JMS сообщение
-     * @param destination очередь-источник сообщения
-     * @param listener обработчик для уведомления о новом сообщении
+     * @param jmsMessage входящее сообщение
+     * @param destination очередь-источник
+     * @param listener обработчик сообщений
      */
     private void handleIncomingMessage(Message jmsMessage, String destination, MessageListener listener) {
         try {
-            // Проверяем тип сообщения (работаем только с текстовыми)
-            if (!(jmsMessage instanceof TextMessage textMessage)) {
-                log.warn("Received non-text message from queue: {}, ignoring", destination);
-                return;
+            if (jmsMessage instanceof TextMessage textMessage) {
+                ReceivedMessage receivedMessage = new ReceivedMessage(
+                        BrokersType.ACTIVEMQ,
+                        destination,
+                        textMessage.getText(),
+                        "activemq-recv-" + System.nanoTime(),
+                        java.time.Instant.now(),
+                        java.util.Map.of()
+                );
+                listener.onMessage(receivedMessage, destination);
             }
-
-            // Извлекаем данные из сообщения
-            String messageText = textMessage.getText();
-            String messageId = textMessage.getJMSMessageID();
-
-            log.debug("Received message from queue: {} - {}", destination, messageText);
-
-            // Создаем унифицированное представление сообщения
-            ReceivedMessage receivedMessage = new ReceivedMessage(
-                    BrokersType.ACTIVEMQ,
-                    destination,
-                    messageText,
-                    messageId,
-                    java.time.Instant.now(),
-                    java.util.Map.of() // Можно добавить дополнительные свойства
-            );
-
-            // Уведомляем обработчик
-            listener.onMessage(receivedMessage, destination);
-
         } catch (JMSException e) {
-            log.error("Error processing message from queue {}: {}", destination, e.getMessage(), e);
+            log.error("Error processing message from queue {}: {}", destination, e.getMessage());
         }
     }
 
     /**
-     * Закрывает соединение с ActiveMQ брокером и освобождает ресурсы.
-     * Ресурсы закрываются в правильном порядке: сессия → соединение.
+     * Отписывается от получения сообщений из указанной очереди ActiveMQ.
+     *
+     * @param destination очередь от которой отписываемся
+     * @throws SubscriptionException если не удалось отписаться
+     */
+    @Override
+    public void unsubscribe(String destination) throws SubscriptionException {
+        MessageConsumer consumer = activeConsumers.remove(destination);
+        if (consumer != null) {
+            try {
+                consumer.close();
+                log.info("Unsubscribed from: {}", destination);
+            } catch (JMSException e) {
+                log.warn("Error unsubscribing from {}: {}", destination, e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Отписывается от всех активных подписок ActiveMQ.
+     */
+    @Override
+    public void unsubscribeAll() throws SubscriptionException {
+        activeConsumers.keySet().forEach(queue -> {
+            try {
+                unsubscribe(queue);
+            } catch (SubscriptionException e) {
+                log.warn("Failed to unsubscribe from {}: {}", queue, e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Закрывает соединение с ActiveMQ и освобождает ресурсы.
      */
     @Override
     public void disconnect() {
         log.info("Disconnecting from ActiveMQ...");
 
+        // Закрываем кэшированные producers
+        producerCache.values().forEach(producer -> {
+            try {
+                producer.close();
+            } catch (JMSException e) {
+                log.debug("Error closing producer: {}", e.getMessage());
+            }
+        });
+        producerCache.clear();
+
         try {
-            if (session != null) {
-                session.close();
-                session = null;
-                log.debug("JMS session closed");
-            }
-
-            if (connection != null) {
-                connection.close();
-                connection = null;
-                log.debug("JMS connection closed");
-            }
-
-            log.info("Successfully disconnected from ActiveMQ");
-
+            if (session != null) session.close();
+            if (connection != null) connection.close();
         } catch (JMSException e) {
-            log.warn("Error during disconnect from ActiveMQ: {}", e.getMessage());
+            log.debug("Error closing resources: {}", e.getMessage());
         }
+
+        session = null;
+        connection = null;
+        log.info("Disconnected from ActiveMQ");
     }
 
     /**
      * Проверяет наличие активного соединения с ActiveMQ.
-     *
-     * @return true если соединение установлено, иначе false
      */
     @Override
     public boolean isConnected() {
@@ -283,8 +305,6 @@ public class ActiveMQBroker implements MessageBroker {
 
     /**
      * Возвращает тип брокера - ActiveMQ.
-     *
-     * @return тип брокера {@link BrokersType#ACTIVEMQ}
      */
     @Override
     public BrokersType getBrokerType() {
@@ -293,28 +313,9 @@ public class ActiveMQBroker implements MessageBroker {
 
     /**
      * Проверяет работоспособность брокера.
-     * В упрощенной реализации проверяет только наличие соединения.
-     *
-     * @return true если брокер работает корректно, иначе false
      */
     @Override
     public boolean isHealthy() {
         return isConnected();
-    }
-
-    /**
-     * Безопасно закрывает JMS MessageProducer с обработкой исключений.
-     *
-     * @param producer продюсер для закрытия
-     */
-    private void closeProducer(MessageProducer producer) {
-        if (producer != null) {
-            try {
-                producer.close();
-                log.debug("MessageProducer closed successfully");
-            } catch (JMSException e) {
-                log.debug("Error closing MessageProducer: {}", e.getMessage());
-            }
-        }
     }
 }

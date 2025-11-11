@@ -10,47 +10,87 @@ import org.springframework.validation.annotation.Validated;
 import java.util.Optional;
 
 /**
- * Конфигурационные свойства для всех брокеров сообщений.
- * Все настройки опциональны - брокеры будут работать с дефолтными значениями.
+ * Центральный класс конфигурационных свойств для всех брокеров сообщений.
+ * Содержит типобезопасные настройки для каждого поддерживаемого брокера.
+ *
+ * <p><b>Особенности дизайна:</b>
+ * <ul>
+ *   <li>Использует Java records для иммутабельности и компактности</li>
+ *   <li>Вложенные records для каждого типа брокера</li>
+ *   <li>Умные значения по умолчанию через компактные конструкторы</li>
+ *   <li>Валидация конфигурации через Jakarta Bean Validation</li>
+ * </ul>
+ *
+ * <p><b>Структура конфигурации в application.yml:</b>
+ * <pre>
+ * message:
+ *   broker:
+ *     activemq:
+ *       url: tcp://localhost:61616
+ *       queue: test.queue
+ *     rabbitmq:
+ *       host: localhost
+ *       port: 5672
+ *     kafka:
+ *       bootstrap-servers: localhost:9092
+ *     websocket:
+ *       endpoint: localhost
+ *       port: 8080
+ *     common:
+ *       retry-attempts: 3
+ * </pre>
+ *
+ * @param activemq настройки для Apache ActiveMQ
+ * @param rabbitmq настройки для RabbitMQ
+ * @param kafka настройки для Apache Kafka
+ * @param websocket настройки для WebSocket соединений
+ * @param common общие настройки для всех брокеров
  */
 @ConfigurationProperties(prefix = "message.broker")
 @Validated
 public record BrokerProperties(
 
-        /**
-         * Настройки для ActiveMQ (опционально)
-         */
         @Valid
         ActiveMQProperties activemq,
 
-        /**
-         * Настройки для RabbitMQ (опционально)
-         */
         @Valid
         RabbitMQProperties rabbitmq,
 
-        /**
-         * Настройки для Kafka (опционально)
-         */
         @Valid
         KafkaProperties kafka,
 
-        /**
-         * Настройки для WebSocket (опционально)
-         */
         @Valid
         WebSocketProperties websocket,
 
-        /**
-         * Общие настройки для всех брокеров
-         */
         @Valid
         CommonProperties common
 
 ) {
 
     /**
-     * Настройки ActiveMQ
+     * Проверяет, настроен ли указанный брокер в конфигурации.
+     * Брокер считается настроенным, если соответствующий раздел конфигурации присутствует.
+     *
+     * @param brokerType тип брокера для проверки
+     * @return true если брокер присутствует в конфигурации, иначе false
+     */
+    public boolean isBrokerConfigured(com.vyanckus.dto.BrokersType brokerType) {
+        return switch (brokerType) {
+            case ACTIVEMQ -> activemq != null;
+            case RABBITMQ -> rabbitmq != null;
+            case KAFKA -> kafka != null;
+            case WEBSOCKET -> websocket != null;
+        };
+    }
+
+    /**
+     * Настройки для Apache ActiveMQ брокера.
+     *
+     * @param url URL для подключения к ActiveMQ (обязательно)
+     * @param queue имя очереди по умолчанию
+     * @param username имя пользователя
+     * @param password пароль
+     * @param connectionTimeoutMs таймаут подключения в миллисекундах
      */
     public record ActiveMQProperties(
             @NotBlank(message = "ActiveMQ URL cannot be blank")
@@ -82,7 +122,14 @@ public record BrokerProperties(
     }
 
     /**
-     * Настройки RabbitMQ
+     * Настройки для RabbitMQ брокера.
+     *
+     * @param host хост RabbitMQ (обязательно)
+     * @param port порт RabbitMQ
+     * @param queue имя очереди по умолчанию
+     * @param username имя пользователя
+     * @param password пароль
+     * @param virtualHost виртуальный хост
      */
     public record RabbitMQProperties(
             @NotBlank(message = "RabbitMQ host cannot be blank")
@@ -117,7 +164,13 @@ public record BrokerProperties(
     }
 
     /**
-     * Настройки Kafka
+     * Настройки для Apache Kafka брокера.
+     *
+     * @param bootstrapServers список bootstrap серверов (обязательно)
+     * @param topic имя топика по умолчанию
+     * @param groupId идентификатор consumer group
+     * @param sessionTimeoutMs таймаут сессии в миллисекундах
+     * @param autoCommitIntervalMs интервал авто-коммита в миллисекундах
      */
     public record KafkaProperties(
             @NotBlank(message = "Kafka bootstrap servers cannot be blank")
@@ -150,7 +203,12 @@ public record BrokerProperties(
     }
 
     /**
-     * Настройки WebSocket
+     * Настройки для WebSocket соединений.
+     *
+     * @param endpoint endpoint WebSocket сервера
+     * @param port порт WebSocket сервера
+     * @param path путь WebSocket endpoint
+     * @param allowedOrigins разрешить все origins
      */
     public record WebSocketProperties(
             String endpoint,
@@ -177,7 +235,13 @@ public record BrokerProperties(
     }
 
     /**
-     * Общие настройки для всех брокеров
+     * Общие настройки, применяемые ко всем брокерам.
+     *
+     * @param retryAttempts количество попыток повтора при ошибках
+     * @param retryDelayMs задержка между попытками в миллисекундах
+     * @param maxMessageSizeBytes максимальный размер сообщения в байтах
+     * @param enableCompression включить сжатие сообщений
+     * @param defaultEncoding кодировка по умолчанию
      */
     public record CommonProperties(
             @Min(value = 1, message = "Retry attempts must be at least 1")
@@ -202,8 +266,10 @@ public record BrokerProperties(
     }
 
     /**
-     * Получить настройки для конкретного брокера по типу
-     * Возвращает Optional - может быть пустым если брокер не настроен
+     * Получить настройки для конкретного брокера по типу.
+     *
+     * @param brokerType тип брокера
+     * @return Optional с настройками брокера или empty если брокер не настроен
      */
     public Optional<Object> getPropertiesForBroker(com.vyanckus.dto.BrokersType brokerType) {
         Object properties = switch (brokerType) {
@@ -216,7 +282,10 @@ public record BrokerProperties(
     }
 
     /**
-     * Получить общие настройки или дефолтные
+     * Получить общие настройки для всех брокеров.
+     * Если общие настройки не указаны в конфигурации, возвращаются значения по умолчанию.
+     *
+     * @return общие настройки (никогда не null)
      */
     public CommonProperties getCommonProperties() {
         return common != null ? common : new CommonProperties(3, 1000, 1024 * 1024, false, "UTF-8");

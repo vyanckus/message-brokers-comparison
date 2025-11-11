@@ -13,13 +13,11 @@ class MessagesPage {
     }
 
     setupEventListeners() {
-        // Send message form
         const sendForm = document.getElementById('sendMessageForm');
         if (sendForm) {
             sendForm.addEventListener('submit', (e) => this.handleSendMessage(e));
         }
 
-        // Auto-refresh history every 10 seconds
         setInterval(() => this.loadMessageHistory(), 10000);
     }
 
@@ -234,7 +232,6 @@ class MessagesPage {
     }
 }
 
-// Global functions
 function initializeBrokers() {
     window.app.apiCall('/messages/initialize', { method: 'POST' })
         .then(data => {
@@ -280,7 +277,6 @@ function refreshMessageHistory() {
     }
 }
 
-// Initialize messages page when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     window.messagesPage = new MessagesPage();
 });

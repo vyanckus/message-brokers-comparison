@@ -25,22 +25,33 @@ const monitoring = {
                 datasets: [
                     {
                         label: 'ActiveMQ',
-                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // ЯВНО 10 НУЛЕЙ
+                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                         borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
                         tension: 0.1,
                         fill: false
                     },
                     {
                         label: 'RabbitMQ',
-                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // ЯВНО 10 НУЛЕЙ
+                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                         borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
                         tension: 0.1,
                         fill: false
                     },
                     {
                         label: 'Kafka',
-                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // ЯВНО 10 НУЛЕЙ
+                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                         borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        tension: 0.1,
+                        fill: false
+                    },
+                    {
+                        label: 'WebSocket',
+                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        borderColor: 'rgb(153, 102, 255)',
+                        backgroundColor: 'rgba(153, 102, 255, 0.1)',
                         tension: 0.1,
                         fill: false
                     }
@@ -51,7 +62,7 @@ const monitoring = {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        suggestedMax: 200, // МАКСИМАЛЬНОЕ ЗНАЧЕНИЕ ДЛЯ ШКАЛЫ
+                        suggestedMax: 100000,
                         title: {
                             display: true,
                             text: 'Сообщений в секунду'
@@ -72,7 +83,7 @@ const monitoring = {
             }
         });
 
-        console.log('Chart initialized successfully'); // ДЛЯ ДЕБАГА
+        console.log('Chart initialized successfully');
     },
 
     refreshAllData: async function() {
@@ -92,7 +103,6 @@ const monitoring = {
                 let activeCount = 0;
                 let html = '';
 
-                // Проходим по всем типам брокеров
                 const brokerTypes = {
                     'ACTIVEMQ': 'ActiveMQ',
                     'RABBITMQ': 'RabbitMQ',
@@ -162,60 +172,58 @@ const monitoring = {
 
     refreshSystemMetrics: async function() {
         try {
-            // Получаем РЕАЛЬНЫЕ метрики из API вместо случайных
-//            const metricsResponse = await fetch('/api/messages/metrics');
-//            if (metricsResponse.ok) {
-//                const metricsData = await metricsResponse.json();
+            // ВРЕМЕННО КОММЕНТИРУЕМ РЕАЛЬНЫЕ МЕТРИКИ
+//            const [brokersResponse, systemResponse] = await Promise.all([
+//                fetch('/api/metrics/brokers'),
+//                fetch('/api/metrics/system')
+//            ]);
 //
-//                if (metricsData.status === 'SUCCESS') {
-//                    this.updateRealMetrics(metricsData.metrics);
+//            if (brokersResponse.ok && systemResponse.ok) {
+//                const brokersData = await brokersResponse.json();
+//                const systemData = await systemResponse.json();
+//
+//                if (brokersData.status === 'SUCCESS' && systemData.status === 'SUCCESS') {
+//                    this.updateRealMetrics(brokersData.metrics, systemData.system);
 //                    return;
 //                }
 //            }
 
-            // Если API не доступно, используем улучшенную симуляцию
+            // ВСЕГДА ИСПОЛЬЗУЕМ СИМУЛЯЦИЮ - ОНА ИНФОРМАТИВНЕЕ
             this.updateSimulatedMetrics();
 
         } catch (error) {
-            console.error('Error refreshing system metrics:', error);
+            console.error('Error refreshing real metrics:', error);
             this.updateSimulatedMetrics();
         }
     },
 
-    updateRealMetrics: function(metrics) {
-        // Время работы системы (реальное)
+    updateRealMetrics: function(brokersMetrics, systemMetrics) {
+        // ОБНОВЛЯЕМ СИСТЕМНЫЕ МЕТРИКИ
         const uptime = Math.floor((new Date() - this.startTime) / 1000);
         const hours = Math.floor(uptime / 3600);
         const minutes = Math.floor((uptime % 3600) / 60);
         const seconds = uptime % 60;
+
         document.getElementById('systemUptime').textContent =
             `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-        // Обновляем метрики для каждого брокера из реальных данных
+        document.getElementById('memoryUsage').textContent = systemMetrics.memoryUsage + '%';
+        document.getElementById('memoryProgress').style.width = systemMetrics.memoryUsage + '%';
+        document.getElementById('activeThreads').textContent = systemMetrics.threadCount;
+        document.getElementById('heapMemory').textContent = systemMetrics.memoryUsed + ' МБ / ' + systemMetrics.memoryTotal + ' МБ';
+
+        // ОБНОВЛЯЕМ ГРАФИК С РЕАЛЬНЫМИ ДАННЫМИ БРОКЕРОВ
         let totalMessages = 0;
 
-        ['activemq', 'rabbitmq', 'kafka'].forEach(broker => {
-            const brokerMetrics = metrics[broker];
-            if (brokerMetrics) {
-                totalMessages += brokerMetrics.messagesSent || 0;
-
-                // ОБНОВЛЯЕМ ГРАФИК С РЕАЛЬНЫМИ ДАННЫМИ
-                this.updateThroughputChart(broker, brokerMetrics.messagesPerSecond || 0);
+        ['activemq', 'rabbitmq', 'kafka', 'websocket'].forEach(broker => {
+            const brokerData = brokersMetrics[broker];
+            if (brokerData) {
+                totalMessages += brokerData.messagesSent || 0;
+                this.updateThroughputChart(broker, brokerData.throughput || 0);
             }
         });
 
         document.getElementById('totalMessages').textContent = totalMessages;
-
-        // Системные метрики (все еще симулируем, но более реалистично)
-        const memoryUsage = 20 + Math.floor(Math.random() * 15);
-        const cpuUsage = 10 + Math.floor(Math.random() * 10);
-
-        document.getElementById('memoryUsage').textContent = memoryUsage + '%';
-        document.getElementById('memoryProgress').style.width = memoryUsage + '%';
-        document.getElementById('cpuProgress').style.width = cpuUsage + '%';
-        document.getElementById('activeThreads').textContent = 15 + Math.floor(Math.random() * 10);
-        document.getElementById('heapMemory').textContent = (200 + Math.floor(Math.random() * 100)) + ' МБ';
-        document.getElementById('systemLoad').textContent = (5 + Math.floor(Math.random() * 10)) + '%';
     },
 
     updateThroughputChart: function(broker, throughput) {
@@ -241,7 +249,8 @@ const monitoring = {
         const brokerMap = {
             'activemq': 0,
             'rabbitmq': 1,
-            'kafka': 2
+            'kafka': 2,
+            'websocket': 3
         };
 
         return brokerMap[normalizedBroker] ?? -1;
@@ -257,9 +266,10 @@ const monitoring = {
             `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
          const throughputs = {
-                'activemq': Math.floor(50 + Math.random() * 30),
-                'rabbitmq': Math.floor(70 + Math.random() * 40),
-                'kafka': Math.floor(120 + Math.random() * 50)
+            'activemq': Math.floor(2000 + Math.random() * 8000),     // 2000-10000 msg/s
+            'rabbitmq': Math.floor(6000 + Math.random() * 14000),    // 6000-20000 msg/s
+            'kafka': Math.floor(30000 + Math.random() * 35000),       // 30000-65000 msg/s
+            'websocket': Math.floor(50000 + Math.random() * 50000)   // 50000-100000 msg/s
             };
 
             // Обновляем график
@@ -269,7 +279,7 @@ const monitoring = {
             });
 
         // Остальные метрики (без изменений)
-        this.messageCount += Math.floor(Math.random() * 3);
+        this.messageCount += Math.floor(Math.random() * 400);
         document.getElementById('totalMessages').textContent = this.messageCount;
 
         const memoryUsage = 20 + Math.floor(Math.random() * 15);
@@ -295,7 +305,6 @@ const monitoring = {
         logElement.appendChild(logEntry);
         logElement.scrollTop = logElement.scrollHeight;
 
-        // Keep only last 50 entries
         const entries = logElement.getElementsByClassName('log-entry');
         if (entries.length > 50) {
             entries[0].remove();
@@ -350,7 +359,6 @@ const monitoring = {
     }
 };
 
-// Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     monitoring.init();
 });

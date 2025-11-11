@@ -21,7 +21,6 @@ const websocketDemo = {
     },
 
     initializeCharts: function() {
-        // Main Chart
         const mainCtx = document.getElementById('mainChart').getContext('2d');
         this.charts.main = new Chart(mainCtx, {
             type: 'line',
@@ -61,7 +60,6 @@ const websocketDemo = {
             }
         });
 
-        // Frequency Chart
         const freqCtx = document.getElementById('frequencyChart').getContext('2d');
         this.charts.frequency = new Chart(freqCtx, {
             type: 'bar',
@@ -84,7 +82,6 @@ const websocketDemo = {
             }
         });
 
-        // Throughput Chart
         const throughputCtx = document.getElementById('throughputChart').getContext('2d');
         this.charts.throughput = new Chart(throughputCtx, {
             type: 'line',
@@ -92,7 +89,7 @@ const websocketDemo = {
                 labels: Array.from({length: 10}, (_, i) => `${i}с`),
                 datasets: [{
                     label: 'Сообщений/сек',
-                    data: Array(10).fill(0), // Заполняем нулями вместо пустого массива
+                    data: Array(10).fill(0),
                     borderColor: 'rgb(54, 162, 235)',
                     tension: 0.1,
                     fill: false
@@ -121,7 +118,6 @@ const websocketDemo = {
     },
 
     setupEventListeners: function() {
-        // Range inputs
         document.getElementById('updateInterval').addEventListener('input', (e) => {
             document.getElementById('intervalValue').textContent = e.target.value;
         });
@@ -141,28 +137,31 @@ const websocketDemo = {
         this.updateConnectionStatus('connecting', 'Подключение...');
 
         try {
-            // Правильный URL для SockJS
             const socket = new SockJS('/ws');
-            this.stompClient = Stomp.over(socket);
+                    this.stompClient = Stomp.over(socket);
+                    this.stompClient.debug = null;
 
-            // Отключаем debug логирование
-            this.stompClient.debug = null;
+                    this.stompClient.connect({}, (frame) => {
+                        this.connected = true;
+                        this.data.connectionStart = new Date();
+                        this.updateConnectionStatus('connected', 'Подключено');
+                        this.updateUI();
+                        this.addLog('success', 'WebSocket успешно подключен');
 
-            this.stompClient.connect({}, (frame) => {
-                this.connected = true;
-                this.data.connectionStart = new Date();
-                this.updateConnectionStatus('connected', 'Подключено');
-                this.updateUI();
-                this.addLog('success', 'WebSocket успешно подключен');
+                        // Подписываемся на живые данные
+                        this.stompClient.subscribe('/topic/livedata', (message) => {
+                            this.handleLiveData(JSON.parse(message.body));
+                        });
 
-                // Подписываемся на темы
-                this.stompClient.subscribe('/topic/livedata', (message) => {
-                    this.handleLiveData(JSON.parse(message.body));
-                });
+                        // Подписываемся на статус генератора
+                        this.stompClient.subscribe('/topic/generator-status', (message) => {
+                            this.handleGeneratorStatus(message.body);
+                        });
 
-                this.stompClient.subscribe('/topic/statistics', (message) => {
-                    this.handleStatistics(JSON.parse(message.body));
-                });
+                        // Подписываемся на данные графиков
+                        this.stompClient.subscribe('/topic/chartdata', (message) => {
+                            this.handleChartData(JSON.parse(message.body));
+                        });
 
             }, (error) => {
                 this.connected = false;
@@ -170,7 +169,6 @@ const websocketDemo = {
                 this.updateUI();
                 this.addLog('error', `Ошибка подключения WebSocket: ${error}`);
 
-                // Покажем детали ошибки в консоли
                 console.error('WebSocket connection error:', error);
             });
         } catch (error) {
@@ -224,12 +222,19 @@ const websocketDemo = {
         // Расчет пропускной способности
         this.updateThroughput();
 
-        // Остальной код без изменений...
         const timestamp = new Date().toLocaleTimeString();
+
+        // Используем данные с сервера для основного графика
         this.updateMainChart(timestamp, data.value);
         this.updateStatistics();
         this.updateFrequencyAnalysis(data.value);
-        this.addLog('info', `Данные: ${data.value.toFixed(2)} (${data.type})`);
+
+        // Обновляем реальные метрики брокеров если есть
+        if (data.brokerMetrics) {
+            this.updateBrokerMetrics(data.brokerMetrics);
+        }
+
+        this.addLog('info', `Данные с сервера: ${data.value.toFixed(2)} (${data.type})`);
     },
 
     // Метод для расчета пропускной способности
@@ -273,7 +278,6 @@ const websocketDemo = {
     },
 
     handleStatistics: function(stats) {
-        // Handle statistics data from server
         this.addLog('info', `Обновление статистики: ${JSON.stringify(stats)}`);
     },
 
@@ -285,11 +289,9 @@ const websocketDemo = {
 
         const chart = this.charts.main;
 
-        // Add new data point
         chart.data.labels.push(label);
         chart.data.datasets[0].data.push(value);
 
-        // Keep only last 20 points
         if (chart.data.labels.length > 20) {
             chart.data.labels.shift();
             chart.data.datasets[0].data.shift();
@@ -355,66 +357,82 @@ const websocketDemo = {
         }
     },
 
+    // Обновляет UI реальными метриками брокеров с сервера.
+    updateBrokerMetrics: function(metrics) {
+        // Можно добавить отображение реальных метрик в UI
+        // Например, обновить дополнительные графики или статистику
+        console.log('Real broker metrics from server:', metrics);
+
+        if (metrics.kafka) {
+            this.addLog('debug',
+                `Kafka metrics: sent=${metrics.kafka.sent}, received=${metrics.kafka.received}`
+            );
+        }
+    },
+
     startGenerator: function() {
-        if (this.generatorInterval) return;
+        if (!this.connected) {
+            this.addLog('error', 'WebSocket не подключен');
+            return;
+        }
 
-        const interval = parseInt(document.getElementById('updateInterval').value);
-        const amplitude = parseInt(document.getElementById('amplitude').value);
-        const frequency = parseInt(document.getElementById('frequency').value);
-        const dataType = document.getElementById('dataType').value;
+        // Собираем параметры с UI
+        const params = {
+            interval: parseInt(document.getElementById('updateInterval').value),
+            amplitude: parseInt(document.getElementById('amplitude').value),
+            frequency: parseInt(document.getElementById('frequency').value),
+            dataType: document.getElementById('dataType').value
+        };
 
-        let time = 0;
-
-        this.generatorInterval = setInterval(() => {
-            if (!this.connected) return;
-
-            let value;
-            switch(dataType) {
-                case 'sine':
-                    value = amplitude * Math.sin(2 * Math.PI * frequency * time / 1000);
-                    break;
-                case 'cosine':
-                    value = amplitude * Math.cos(2 * Math.PI * frequency * time / 1000);
-                    break;
-                case 'random':
-                    value = (Math.random() - 0.5) * 2 * amplitude;
-                    break;
-                case 'sawtooth':
-                    value = 2 * amplitude * (time / 1000 * frequency % 1) - amplitude;
-                    break;
-                default:
-                    value = 0;
-            }
-
-            // Send simulated data (in real app, this would come from server)
-            const data = {
-                type: dataType,
-                value: value,
-                timestamp: new Date().toISOString(),
-                amplitude: amplitude,
-                frequency: frequency
-            };
-
-            this.handleLiveData(data);
-            time += interval;
-
-        }, interval);
+        // Отправляем команду на сервер для запуска генератора
+        this.stompClient.send("/app/websocket/control", {},
+            JSON.stringify({
+                command: "start",
+                parameters: params
+            }));
 
         document.getElementById('startGeneratorBtn').disabled = true;
         document.getElementById('stopGeneratorBtn').disabled = false;
-        this.addLog('success', `Генератор данных запущен (${dataType}, ${interval}мс)`);
+        this.addLog('success', 'Команда запуска генератора отправлена на сервер');
     },
 
     stopGenerator: function() {
-        if (this.generatorInterval) {
-            clearInterval(this.generatorInterval);
-            this.generatorInterval = null;
+        if (this.connected) {
+            // Отправляем команду на сервер для остановки генератора
+            this.stompClient.send("/app/websocket/control", {},
+                JSON.stringify({
+                    command: "stop"
+                }));
         }
 
         document.getElementById('startGeneratorBtn').disabled = false;
         document.getElementById('stopGeneratorBtn').disabled = true;
-        this.addLog('info', 'Генератор данных остановлен');
+        this.addLog('info', 'Команда остановки генератора отправлена на сервер');
     },
+
+    // Обрабатывает статус генератора от сервера.
+    handleGeneratorStatus: function(status) {
+        if (status === 'RUNNING') {
+            this.addLog('success', 'Генератор данных запущен на сервере');
+            document.getElementById('startGeneratorBtn').disabled = true;
+            document.getElementById('stopGeneratorBtn').disabled = false;
+        } else {
+            this.addLog('info', 'Генератор данных остановлен на сервере');
+            document.getElementById('startGeneratorBtn').disabled = false;
+            document.getElementById('stopGeneratorBtn').disabled = true;
+        }
+    },
+
+    // Обрабатывает структурированные данные для графиков от сервера.
+    handleChartData: function(chartData) {
+        this.addLog('info', `Получены данные графика: ${chartData.title}`);
+
+        // Здесь можно обновлять дополнительные графики
+        // используя chartData.labels и chartData.values
+        console.log('Chart data received:', chartData);
+    },
+
+
 
     addLog: function(type, message) {
         const logElement = document.getElementById('messageLog');
@@ -427,7 +445,6 @@ const websocketDemo = {
         logElement.appendChild(logEntry);
         logElement.scrollTop = logElement.scrollHeight;
 
-        // Keep only last 20 entries
         const entries = logElement.getElementsByClassName('log-entry');
         if (entries.length > 20) {
             entries[0].remove();
@@ -435,7 +452,6 @@ const websocketDemo = {
     },
 
     clearData: function() {
-        // Clear all charts
         Object.values(this.charts).forEach(chart => {
             chart.data.labels = [];
             chart.data.datasets.forEach(dataset => {
@@ -444,12 +460,10 @@ const websocketDemo = {
             chart.update('none');
         });
 
-        // Clear statistics
         this.data.messagesReceived = 0;
         this.data.dataPoints = 0;
         this.updateStatistics();
 
-        // Clear message log
         document.getElementById('messageLog').innerHTML =
             '<div class="log-entry log-info">Лог очищен</div>';
 
@@ -463,7 +477,6 @@ const websocketDemo = {
     }
 };
 
-// Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     websocketDemo.init();
 });

@@ -8,7 +8,7 @@ spring:
   thymeleaf:
     cache: false
 
-  # Базовые настройки брокеров
+  # Spring Boot AutoConfiguration properties
   activemq:
     broker-url: tcp://localhost:61616
     user: admin
@@ -24,28 +24,74 @@ spring:
       group-id: message-brokers-group
       auto-offset-reset: earliest
 
-# Кастомные настройки (дополнительные)
+# Кастомные свойства для BrokerProperties
 message:
   broker:
+    activemq:
+      url: tcp://localhost:61616
+      queue: test.queue
+      username: admin
+      password: admin
+      connection-timeout-ms: 5000
+    rabbitmq:
+      host: localhost
+      port: 5672
+      queue: test.queue
+      username: guest
+      password: guest
+      virtual-host: /
+    kafka:
+      bootstrap-servers: localhost:9092
+      topic: test-topic
+      group-id: test-group
+      session-timeout-ms: 10000
+      auto-commit-interval-ms: 1000
     websocket:
       endpoint: localhost
-      path: /ws
+      port: 8080
+      path: /websocket
       allowed-origins: true
+    common:
+      retry-attempts: 3
+      retry-delay-ms: 1000
+      max-message-size-bytes: 1048576
+      enable-compression: false
+      default-encoding: UTF-8
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
+      cors:
+        allowed-origins: "*"
+        allowed-methods: GET,POST
   endpoint:
     health:
       show-details: always
+      show-components: always
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      simple:
+        enabled: true
+    tags:
+      application: message-brokers-comparison
 
 logging:
+  file:
+    name: logs/message-brokers-app.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7
   level:
     com.vyanckus: INFO
-    org.springframework.web.socket: DEBUG  # Для отладки WebSocket
-    org.springframework.messaging: DEBUG   # Для отладки messaging
+    org.springframework.web.socket: DEBUG
+    org.springframework.messaging: DEBUG
 
 server:
   port: 8080

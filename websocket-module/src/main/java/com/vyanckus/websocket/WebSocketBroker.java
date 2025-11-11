@@ -16,7 +16,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -24,32 +23,25 @@ import java.util.concurrent.ConcurrentMap;
  * Реализация {@link MessageBroker} для WebSocket соединений.
  * Использует STOMP over WebSocket для реального времени двусторонней связи.
  *
- * <p>Основные возможности:</p>
+ * <p><b>Важно:</b> WebSocket является каналом связи, а не брокером сообщений.
+ * Для унификации API с другими брокерами (Kafka, RabbitMQ) используется эмуляция
+ * поведения брокера через внутреннюю систему подписок.</p>
+ *
+ * <p><b>Особенности реализации:</b>
  * <ul>
- *   <li>Отправка сообщений через WebSocket</li>
- *   <li>Подписка на получение сообщений по темам (topics)</li>
- *   <li>Управление WebSocket соединениями</li>
- *   <li>Интеграция с Spring STOMP</li>
+ *   <li>Spring SimpMessagingTemplate для отправки сообщений</li>
+ *   <li>Local subscription tracking для эмуляции получения сообщений</li>
+ *   <li>Automatic connection management by Spring</li>
+ *   <li>Упрощенная логика для максимальной производительности</li>
  * </ul>
  *
- * @author vyanckus
- * @version 1.0
  * @see MessageBroker
  * @see BrokersType#WEBSOCKET
  */
 @Component
 public class WebSocketBroker implements MessageBroker {
 
-    /**
-     * Логгер для записи событий и ошибок.
-     */
     private static final Logger log = LoggerFactory.getLogger(WebSocketBroker.class);
-
-    /**
-     * Константы для шаблонов сообщений.
-     */
-    private static final String LOG_FORMAT = "{}: {}";
-    private static final String SEND_ERROR_MSG = "Failed to send message via WebSocket";
 
     /**
      * Конфигурация WebSocket из application.yml.
@@ -62,31 +54,39 @@ public class WebSocketBroker implements MessageBroker {
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
-     * Активные подписки на WebSocket темы.
+     * Активные подписки для эмуляции поведения брокера сообщений.
+     * WebSocket не имеет встроенной системы подписок на стороне сервера,
+     * поэтому мы эмулируем её через этот Map для унификации API.
      */
     private final ConcurrentMap<String, MessageListener> activeSubscriptions = new ConcurrentHashMap<>();
 
     /**
-     * Флаг подключения (WebSocket всегда "подключен" после инициализации Spring).
+     * Флаг подключения WebSocket брокера.
+     * В отличие от других брокеров, здесь флаг указывает на доступность
+     * messagingTemplate, а не на установленное сетевое соединение.
      */
     private boolean connected = false;
 
     /**
      * Конструктор с внедрением зависимостей.
      *
-     * @param brokerProperties конфигурация всех брокеров из application.yml
+     * @param brokerProperties конфигурация всех брокеров
      * @param messagingTemplate Spring Messaging Template для WebSocket
      */
     public WebSocketBroker(BrokerProperties brokerProperties, SimpMessagingTemplate messagingTemplate) {
-        this.config = new BrokerProperties.WebSocketProperties("localhost", 8080, "/ws", true);
+        this.config = Optional.ofNullable(brokerProperties.websocket())
+                .orElse(new BrokerProperties.WebSocketProperties("localhost", 8080, "/topic/messages", true));
+
         this.messagingTemplate = messagingTemplate;
-        log.info("WebSocket broker initialized for endpoint: {}:{}", config.endpoint(), config.port());
+        log.info("WebSocket broker initialized with endpoint: {}:{}",
+                config.endpoint(), config.port());
     }
 
     /**
-     * "Подключает" WebSocket брокер.
-     * В случае WebSocket подключение устанавливается автоматически Spring'ом.
-     * Этот метод просто устанавливает флаг connected.
+     * Инициализирует WebSocket брокер.
+     * В отличие от других брокеров, здесь не устанавливается сетевое соединение,
+     * а проверяется доступность Spring WebSocket инфраструктуры.
+     * WebSocket подключение управляется Spring автоматически при подключении клиентов.
      *
      * @throws BrokerConnectionException если WebSocket не настроен корректно
      */
@@ -98,12 +98,8 @@ public class WebSocketBroker implements MessageBroker {
         }
 
         try {
-            log.info("Initializing WebSocket broker");
-
-            // WebSocket подключение управляется Spring'ом автоматически
-            // Проверяем только что messagingTemplate доступен
             if (messagingTemplate == null) {
-                throw new IllegalStateException("WebSocket messaging template is not available");
+                throw new BrokerConnectionException("WebSocket messaging template is not available");
             }
 
             connected = true;
@@ -111,14 +107,17 @@ public class WebSocketBroker implements MessageBroker {
 
         } catch (Exception e) {
             String errorMessage = "Failed to initialize WebSocket broker";
-            log.error(LOG_FORMAT, errorMessage, e.getMessage(), e);
+            log.error("{}: {}", errorMessage, e.getMessage());
             throw new BrokerConnectionException(errorMessage, e);
         }
     }
 
     /**
      * Отправляет сообщение через WebSocket на указанный destination.
-     * Сообщение отправляется всем подписанным клиентам.
+     *
+     * <p><b>Эмуляция брокера:</b> Параллельно с отправкой реальным WebSocket клиентам,
+     * уведомляются внутренние подписчики через {@link #notifyLocalSubscribers},
+     * создавая иллюзию работы с полноценным брокером сообщений.</p>
      *
      * @param request запрос на отправку сообщения
      * @return ответ с результатом отправки
@@ -131,34 +130,31 @@ public class WebSocketBroker implements MessageBroker {
         }
 
         try {
-            // Используем destination из запроса или конфигурации по умолчанию
-            String destination = request.destination() != null ?
-                    request.destination() : config.path();
+            String destination = request.destination() != null ? request.destination() : config.path();
 
-            log.debug("Sending WebSocket message to destination: {}", destination);
-
-            // Отправляем сообщение через WebSocket
+            // Упрощенная отправка через WebSocket
             messagingTemplate.convertAndSend(destination, request.message());
 
-            // Генерируем ID сообщения для трейсинга
-            String messageId = UUID.randomUUID().toString();
+            // Простой ID для демо
+            String messageId = "websocket-" + System.nanoTime();
 
-            log.debug("WebSocket message successfully sent to destination: {}", destination);
-
-            // Уведомляем локальных подписчиков об отправленном сообщении
+            // Уведомляем локальных подписчиков
             notifyLocalSubscribers(destination, request.message(), messageId);
 
             return MessageResponse.success(BrokersType.WEBSOCKET, messageId);
 
         } catch (Exception e) {
-            log.error(LOG_FORMAT, SEND_ERROR_MSG, e.getMessage(), e);
-            throw new MessageSendException(SEND_ERROR_MSG, e);
+            log.error("Failed to send WebSocket message: {}", e.getMessage());
+            throw new MessageSendException("Failed to send WebSocket message", e);
         }
     }
 
     /**
      * Подписывается на получение сообщений из указанного destination.
-     * Регистрирует MessageListener для локальной обработки входящих сообщений.
+     *
+     * <p><b>Эмуляция брокера:</b> WebSocket не поддерживает подписки на стороне сервера.
+     * Этот метод регистрирует слушатель для эмуляции получения сообщений
+     * через {@link #notifyLocalSubscribers} и {@link #handleIncomingWebSocketMessage}.</p>
      *
      * @param destination тема для подписки
      * @param listener обработчик входящих сообщений
@@ -171,23 +167,22 @@ public class WebSocketBroker implements MessageBroker {
         }
 
         try {
-            log.info("Subscribing to WebSocket destination: {}", destination);
-
-            // Регистрируем подписку локально
             activeSubscriptions.put(destination, listener);
-
-            log.info("Successfully subscribed to WebSocket destination: {}", destination);
+            log.info("Subscribed to WebSocket destination: {}", destination);
 
         } catch (Exception e) {
-            String errorMessage = String.format("Failed to subscribe to WebSocket destination %s", destination);
-            log.error(LOG_FORMAT, errorMessage, e.getMessage(), e);
+            String errorMessage = "Failed to subscribe to WebSocket destination " + destination;
+            log.error("{}: {}", errorMessage, e.getMessage());
             throw new SubscriptionException(errorMessage, e);
         }
     }
 
     /**
      * Уведомляет локальных подписчиков о новом сообщении.
-     * Используется для симуляции получения сообщений через WebSocket.
+     *
+     * <p><b>Эмуляция брокера:</b> Этот метод является ключевым для эмуляции
+     * поведения брокера сообщений. Он создаёт иллюзию, что сообщение было
+     * получено от внешнего брокера, а не отправлено через тот же WebSocketBroker.</p>
      *
      * @param destination тема сообщения
      * @param message текст сообщения
@@ -208,75 +203,100 @@ public class WebSocketBroker implements MessageBroker {
 
                 listener.onMessage(receivedMessage, destination);
 
-                log.debug("Notified local subscriber for destination: {}", destination);
-
             } catch (Exception e) {
-                log.error("Error notifying local subscriber for destination {}: {}",
-                        destination, e.getMessage(), e);
+                log.error("Error notifying local subscriber for destination {}: {}", destination, e.getMessage());
             }
         }
     }
 
     /**
      * Обрабатывает входящее WebSocket сообщение от клиентов.
-     * Этот метод может быть вызван из WebSocket контроллера.
      *
-     * @param message текст сообщения
+     * <p><b>Эмуляция брокера:</b> Этот метод используется для обработки сообщений,
+     * которые реально пришли от WebSocket клиентов, и передачи их внутренним
+     * подписчикам как будто они пришли от внешнего брокера.</p>
+     *
+     * <p><b>Требует интеграции:</b> Для работы этого метода необходимо, чтобы
+     * WebSocket контроллеры вызывали его при получении сообщений от клиентов.</p>
+     *
+     * @param message текст сообщения от клиента
      * @param destination тема сообщения
      */
     public void handleIncomingWebSocketMessage(String message, String destination) {
         try {
-            log.debug("Received WebSocket message from destination: {} - {}", destination, message);
-
             MessageListener listener = activeSubscriptions.get(destination);
             if (listener != null) {
                 ReceivedMessage receivedMessage = new ReceivedMessage(
                         BrokersType.WEBSOCKET,
                         destination,
                         message,
-                        UUID.randomUUID().toString(),
+                        "websocket-recv-" + System.nanoTime(),
                         java.time.Instant.now(),
                         java.util.Map.of("source", "websocket")
                 );
 
                 listener.onMessage(receivedMessage, destination);
-
-                log.debug("Processed incoming WebSocket message for destination: {}", destination);
-            } else {
-                log.debug("No local subscriber found for destination: {}", destination);
             }
 
         } catch (Exception e) {
-            log.error("Error processing incoming WebSocket message for destination {}: {}",
-                    destination, e.getMessage(), e);
+            log.error("Error processing incoming WebSocket message for destination {}: {}", destination, e.getMessage());
         }
     }
 
     /**
-     * "Отключает" WebSocket брокер.
-     * Очищает все активные подписки и сбрасывает флаг connected.
+     * Отписывается от получения сообщений из указанного destination.
+     *
+     * @param destination тема от которой отписываемся
+     * @throws SubscriptionException если не удалось отписаться
+     */
+    @Override
+    public void unsubscribe(String destination) throws SubscriptionException {
+        MessageListener listener = activeSubscriptions.remove(destination);
+        if (listener == null) {
+            log.warn("No active subscription found for: {}", destination);
+            return;
+        }
+
+        log.info("Unsubscribed from: {}", destination);
+    }
+
+    /**
+     * Отписывается от всех активных подписок WebSocket.
+     */
+    @Override
+    public void unsubscribeAll() throws SubscriptionException {
+        log.info("Unsubscribing from all WebSocket destinations...");
+
+        activeSubscriptions.keySet().forEach(destination -> {
+            try {
+                unsubscribe(destination);
+            } catch (SubscriptionException e) {
+                log.warn("Failed to unsubscribe from {}: {}", destination, e.getMessage());
+            }
+        });
+
+        log.info("Unsubscribed from all WebSocket destinations");
+    }
+
+    /**
+     * Отключает WebSocket брокер и освобождает ресурсы.
      */
     @Override
     public void disconnect() {
         log.info("Disconnecting WebSocket broker...");
 
         try {
-            // Очищаем все активные подписки
-            activeSubscriptions.clear();
-
-            connected = false;
-
-            log.info("WebSocket broker successfully disconnected");
-
+            unsubscribeAll();
         } catch (Exception e) {
-            log.warn("Error during WebSocket broker disconnect: {}", e.getMessage(), e);
+            log.warn("Error during unsubscribe: {}", e.getMessage());
         }
+
+        connected = false;
+        log.info("WebSocket broker disconnected");
     }
 
     /**
      * Проверяет наличие активного подключения WebSocket брокера.
-     *
-     * @return true если брокер подключен, иначе false
      */
     @Override
     public boolean isConnected() {
@@ -285,8 +305,6 @@ public class WebSocketBroker implements MessageBroker {
 
     /**
      * Возвращает тип брокера - WebSocket.
-     *
-     * @return тип брокера {@link BrokersType#WEBSOCKET}
      */
     @Override
     public BrokersType getBrokerType() {
@@ -295,9 +313,6 @@ public class WebSocketBroker implements MessageBroker {
 
     /**
      * Проверяет работоспособность брокера.
-     * Проверяет что брокер подключен и messagingTemplate доступен.
-     *
-     * @return true если брокер работает корректно, иначе false
      */
     @Override
     public boolean isHealthy() {
@@ -306,8 +321,6 @@ public class WebSocketBroker implements MessageBroker {
 
     /**
      * Возвращает количество активных подписок.
-     *
-     * @return количество активных подписок
      */
     public int getActiveSubscriptionsCount() {
         return activeSubscriptions.size();

@@ -3,6 +3,7 @@ package com.vyanckus.controller;
 import com.vyanckus.dto.BenchmarkRequest;
 import com.vyanckus.dto.BenchmarkResult;
 import com.vyanckus.service.BenchmarkService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -22,9 +23,6 @@ import java.util.Map;
  *   <li>Мониторинга статуса benchmark тестов</li>
  *   <li>Получения расширенной статистики</li>
  * </ul>
- *
- * @author vyanckus
- * @version 1.0
  */
 @RestController
 @RequestMapping("/api/benchmark")
@@ -34,6 +32,11 @@ public class BenchmarkController {
 
     private final BenchmarkService benchmarkService;
 
+    /**
+     * Конструктор контроллера benchmark тестирования.
+     *
+     * @param benchmarkService сервис для выполнения benchmark тестов
+     */
     public BenchmarkController(BenchmarkService benchmarkService) {
         this.benchmarkService = benchmarkService;
         log.info("BenchmarkController initialized");
@@ -48,7 +51,7 @@ public class BenchmarkController {
      * @return ResponseEntity с результатами тестирования
      */
     @PostMapping("/run")
-    public ResponseEntity<Map<String, Object>> runBenchmark(@RequestBody BenchmarkRequest request) {
+    public ResponseEntity<Map<String, Object>> runBenchmark(@Valid @RequestBody BenchmarkRequest request) {
         try {
             log.info("Starting synchronous benchmark for brokers: {}", request.brokers());
 
@@ -80,7 +83,7 @@ public class BenchmarkController {
      * @return ResponseEntity с ID запущенного benchmark теста
      */
     @PostMapping("/start-async")
-    public ResponseEntity<Map<String, Object>> startAsyncBenchmark(@RequestBody BenchmarkRequest request) {
+    public ResponseEntity<Map<String, Object>> startAsyncBenchmark(@Valid @RequestBody BenchmarkRequest request) {
         try {
             log.info("Starting asynchronous benchmark for brokers: {}", request.brokers());
 

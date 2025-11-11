@@ -1,9 +1,16 @@
 const healthMonitor = {
     autoRefreshInterval: null,
     healthData: {},
-    startTime: new Date(),
 
     init: function() {
+        const savedStartTime = localStorage.getItem('healthMonitorStartTime');
+        if (savedStartTime) {
+            this.startTime = new Date(parseInt(savedStartTime));
+        } else {
+            this.startTime = new Date();
+            localStorage.setItem('healthMonitorStartTime', this.startTime.getTime().toString());
+        }
+
         this.refreshAll();
         this.startAutoRefresh();
     },
@@ -17,7 +24,6 @@ const healthMonitor = {
     },
 
     refreshSystemHealth: function() {
-        // Simulate system health checks
         const healthStatus = {
             system: Math.random() > 0.1 ? 'up' : 'down',
             database: Math.random() > 0.2 ? 'up' : 'down',
@@ -25,7 +31,6 @@ const healthMonitor = {
             memory: Math.random() > 0.1 ? 'up' : 'warning'
         };
 
-        // Update health cards
         Object.keys(healthStatus).forEach(component => {
             const element = document.getElementById(`${component}Health`);
             const statusElement = element.querySelector('.health-status');
@@ -34,7 +39,6 @@ const healthMonitor = {
             statusElement.className = `health-status status-${status}`;
             statusElement.textContent = status.toUpperCase();
 
-            // Update icon color based on status
             const icon = element.querySelector('.health-icon');
             icon.style.background = this.getStatusColor(status);
         });
@@ -51,7 +55,6 @@ const healthMonitor = {
         let html = '';
 
         brokers.forEach(broker => {
-            // Simulate broker health (in real app, this would come from API)
             const isHealthy = Math.random() > 0.3;
             const status = isHealthy ? 'up' : (Math.random() > 0.5 ? 'down' : 'warning');
             const responseTime = (Math.random() * 100 + 10).toFixed(2);
@@ -78,7 +81,6 @@ const healthMonitor = {
 
     refreshSystemMetrics: async function() {
         try {
-            // РЕАЛЬНОЕ ВРЕМЯ РАБОТЫ СИСТЕМЫ
             const uptime = Math.floor((new Date() - this.startTime) / 1000);
             this.setElementText('jvmUptime', this.formatUptime(uptime));
 
@@ -110,7 +112,6 @@ const healthMonitor = {
         }
     },
 
-    // ДОБАВЛЯЕМ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ С ПРОВЕРКОЙ НА NULL
     setElementText: function(elementId, text) {
         const element = document.getElementById(elementId);
         if (element) {
@@ -162,7 +163,6 @@ const healthMonitor = {
     runFullDiagnostic: function() {
         this.addHistory('info', 'Запуск полной диагностики системы...');
 
-        // Simulate diagnostic process
         setTimeout(() => {
             this.refreshAll();
             this.addHistory('success', 'Полная диагностика успешно завершена');
@@ -192,7 +192,7 @@ const healthMonitor = {
         this.autoRefreshInterval = setInterval(() => {
             this.refreshSystemMetrics();
             this.refreshBrokersHealth();
-        }, 10000); // Refresh every 10 seconds
+        }, 10000);
     },
 
     addHistory: function(type, message) {
@@ -209,7 +209,6 @@ const healthMonitor = {
         historyElement.appendChild(historyItem);
         historyElement.scrollTop = historyElement.scrollHeight;
 
-        // Keep only last 15 entries
         const entries = historyElement.getElementsByClassName('history-item');
         if (entries.length > 15) {
             entries[0].remove();
@@ -240,7 +239,6 @@ const healthMonitor = {
     },
 };
 
-// Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     healthMonitor.init();
 });

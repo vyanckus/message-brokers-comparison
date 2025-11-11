@@ -41,6 +41,11 @@ public class BenchmarkService {
      */
     private final Map<String, Future<?>> activeBenchmarks = new ConcurrentHashMap<>();
 
+    /**
+     * Конструктор сервиса benchmark тестирования.
+     *
+     * @param messageBrokerService сервис для работы с брокерами сообщений
+     */
     public BenchmarkService(MessageBrokerService messageBrokerService) {
         this.messageBrokerService = messageBrokerService;
         this.executorService = Executors.newCachedThreadPool();
@@ -79,8 +84,13 @@ public class BenchmarkService {
     /**
      * Запускает benchmark тестирование в отдельном потоке.
      *
+     * <p><b>Примечание:</b> В текущей реализации используется имитация асинхронности
+     * для демонстрационных целей. Для production-окружения потребуется дополнительная
+     * реализация с persistence хранением статусов тестов.</p>
+     *
      * @param request параметры benchmark теста
      * @return ID запущенного benchmark
+     * @throws IllegalStateException если сервис брокеров не инициализирован
      */
     public String startAsyncBenchmark(BenchmarkRequest request) {
         String benchmarkId = UUID.randomUUID().toString();
@@ -242,7 +252,6 @@ public class BenchmarkService {
      *         значения - соответствующие числовые показатели
      *
      * @see BrokerBenchmarkResult
-     * @since 1.0
      */
     public Map<String, Object> getExtendedBenchmarkStats(BrokerBenchmarkResult result) {
         Map<String, Object> stats = new ConcurrentHashMap<>();

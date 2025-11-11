@@ -13,9 +13,24 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Фабрика для создания экземпляров брокеров сообщений.
- * Использует Spring DI для получения уже созданных бинов.
- * Паттерн Factory скрывает сложность создания разных типов брокеров.
+ * Фабрика для создания и управления экземплярами брокеров сообщений.
+ * Реализует паттерн Factory для централизованного создания брокеров.
+ *
+ * <p><b>Основные функции:</b>
+ * <ul>
+ *   <li>Создание брокеров по типу с проверкой доступности</li>
+ *   <li>Кэширование созданных экземпляров для производительности</li>
+ *   <li>Проверка конфигурации и наличия Spring бинов</li>
+ *   <li>Предоставление информации о доступных брокерах</li>
+ * </ul>
+ *
+ * <p><b>Жизненный цикл брокеров:</b>
+ * <ol>
+ *   <li>Проверка конфигурации в {@link BrokerProperties}</li>
+ *   <li>Проверка наличия Spring бина для брокера</li>
+ *   <li>Создание и кэширование экземпляра</li>
+ *   <li>Возврат кэшированного экземпляра при повторных запросах</li>
+ * </ol>
  */
 @Component
 public class MessageBrokerFactory {
@@ -25,10 +40,8 @@ public class MessageBrokerFactory {
     private final ApplicationContext applicationContext;
     private final BrokerProperties brokerProperties;
 
-    // Кэш созданных брокеров
     private final Map<BrokersType, MessageBroker> brokersCache = new HashMap<>();
 
-    // Имена бинов для каждого типа брокера
     private final Map<BrokersType, String> brokerBeanNames = Map.of(
             BrokersType.ACTIVEMQ, "activeMQBroker",
             BrokersType.RABBITMQ, "rabbitMQBroker",
@@ -44,30 +57,27 @@ public class MessageBrokerFactory {
     }
 
     /**
-     * Создает брокер указанного типа
-     * @param brokerType тип брокера
-     * @return реализацию MessageBroker
+     * Создает или возвращает кэшированный брокер указанного типа.
+     *
+     * @param brokerType тип брокера для создания
+     * @return экземпляр MessageBroker или null если брокер недоступен
      */
     public MessageBroker createBroker(BrokersType brokerType) {
-        // Проверяем кэш
         if (brokersCache.containsKey(brokerType)) {
+            log.debug("Returning cached broker: {}", brokerType);
             return brokersCache.get(brokerType);
         }
 
-        // Проверяем конфигурацию
-        if (!isBrokerConfigured(brokerType)) {
-            log.warn("Broker {} is not configured properly", brokerType);
+        if (!isBrokerAvailable(brokerType)) {
+            log.warn("Broker {} is not available", brokerType);
             return null;
         }
 
         try {
             String beanName = brokerBeanNames.get(brokerType);
             MessageBroker broker = (MessageBroker) applicationContext.getBean(beanName);
-
-            // Кэшируем брокер
             brokersCache.put(brokerType, broker);
             log.info("Successfully created broker: {}", brokerType);
-
             return broker;
 
         } catch (Exception e) {
@@ -77,8 +87,45 @@ public class MessageBrokerFactory {
     }
 
     /**
-     * Создает все доступные брокеры
-     * @return мапа брокеров по типу
+     * Проверяет доступность брокера (конфигурация + Spring бин).
+     *
+     * @param brokerType тип брокера для проверки
+     * @return true если брокер настроен и доступен, иначе false
+     */
+    public boolean isBrokerAvailable(BrokersType brokerType) {
+        // 1. Проверяем конфигурацию в BrokerProperties
+        if (!brokerProperties.isBrokerConfigured(brokerType)) {
+            log.debug("Broker {} is not configured", brokerType);
+            return false;
+        }
+
+        // 2. Проверяем наличие Spring бина
+        String beanName = brokerBeanNames.get(brokerType);
+        if (!applicationContext.containsBean(beanName)) {
+            log.debug("Bean '{}' not found for broker {}", beanName, brokerType);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Возвращает информацию о доступных брокерах.
+     *
+     * @return мапа с флагами доступности для каждого типа брокера
+     */
+    public Map<BrokersType, Boolean> getAvailableBrokers() {
+        Map<BrokersType, Boolean> available = new HashMap<>();
+        for (BrokersType type : BrokersType.values()) {
+            available.put(type, isBrokerAvailable(type));
+        }
+        return Collections.unmodifiableMap(available);
+    }
+
+    /**
+     * Создает все доступные и настроенные брокеры.
+     *
+     * @return мапа созданных брокеров по типу (только успешно созданные)
      */
     public Map<BrokersType, MessageBroker> createAllBrokers() {
         Map<BrokersType, MessageBroker> brokers = new HashMap<>();
@@ -95,21 +142,8 @@ public class MessageBrokerFactory {
     }
 
     /**
-     * Проверяет доступность конфигурации для брокера
-     */
-    public boolean isBrokerConfigured(BrokersType brokerType) {
-        try {
-            // Простая проверка - если есть конфигурация, считаем что брокер настроен
-            brokerProperties.getPropertiesForBroker(brokerType);
-            return true;
-        } catch (Exception e) {
-            log.debug("Broker {} not configured: {}", brokerType, e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Очищает кэш брокеров
+     * Очищает кэш созданных брокеров.
+     * Полезно при переконфигурации или переподключении.
      */
     public void clearCache() {
         brokersCache.clear();

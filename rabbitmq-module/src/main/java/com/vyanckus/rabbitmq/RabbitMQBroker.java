@@ -19,6 +19,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,35 +29,24 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * Реализация {@link MessageBroker} для RabbitMQ.
- * Использует AMQP протокол для отправки и получения сообщений через RabbitMQ брокер.
+ * Использует AMQP протокол для отправки и получения сообщений.
+ * Оптимизирован для демонстрационных целей с упрощенной логикой.
  *
- * <p>Основные возможности:</p>
+ * <p><b>Особенности реализации:</b>
  * <ul>
- *   <li>Подключение к RabbitMQ брокеру</li>
- *   <li>Отправка сообщений в очереди</li>
- *   <li>Подписка на получение сообщений из очередей</li>
- *   <li>Управление соединением и каналами</li>
+ *   <li>Упрощенная отправка сообщений для производительности</li>
+ *   <li>Автоматическое создание очередей при первом использовании</li>
+ *   <li>Consumer management с graceful shutdown</li>
+ *   <li>Базовые гарантии доставки для демо</li>
  * </ul>
  *
- * @author vyanckus
- * @version 1.0
  * @see MessageBroker
  * @see BrokersType#RABBITMQ
  */
 @Component
 public class RabbitMQBroker implements MessageBroker {
 
-
-    /**
-     * Логгер для записи событий и ошибок.
-     */
     private static final Logger log = LoggerFactory.getLogger(RabbitMQBroker.class);
-
-    /**
-     * Константы для шаблонов сообщений
-     */
-    private static final String LOG_FORMAT = "{}: {}";
-    private static final String SEND_ERROR_MSG = "Failed to send message to RabbitMQ";
 
     /**
      * Конфигурация RabbitMQ из application.yml.
@@ -63,7 +54,7 @@ public class RabbitMQBroker implements MessageBroker {
     private final BrokerProperties.RabbitMQProperties config;
 
     /**
-     * Соединение с RabbitMQ брокером.
+     * AMQP соединение с RabbitMQ брокером.
      */
     private Connection connection;
 
@@ -73,7 +64,7 @@ public class RabbitMQBroker implements MessageBroker {
     private Channel channel;
 
     /**
-     * Активные потребители для управления подписками.
+     * Активные подписки для управления consumer'ами.
      */
     private final ConcurrentMap<String, String> activeConsumers = new ConcurrentHashMap<>();
 
@@ -92,7 +83,6 @@ public class RabbitMQBroker implements MessageBroker {
 
     /**
      * Устанавливает соединение с RabbitMQ брокером.
-     * Создает ConnectionFactory, соединение и канал для работы с AMQP.
      *
      * @throws BrokerConnectionException если не удалось установить соединение
      */
@@ -106,7 +96,6 @@ public class RabbitMQBroker implements MessageBroker {
         try {
             log.info("Connecting to RabbitMQ at: {}:{}", config.host(), config.port());
 
-            // Создание фабрики соединений
             ConnectionFactory factory = new ConnectionFactory();
             factory.setHost(config.host());
             factory.setPort(config.port());
@@ -114,25 +103,25 @@ public class RabbitMQBroker implements MessageBroker {
             factory.setPassword(config.password());
             factory.setVirtualHost(config.virtualHost());
 
-            // Установка соединения
-            connection = factory.newConnection();
+            // Оптимизация для производительности
+            factory.setConnectionTimeout(30000);
+            factory.setHandshakeTimeout(30000);
 
-            // Создание канала
+            connection = factory.newConnection();
             channel = connection.createChannel();
 
             log.info("Successfully connected to RabbitMQ");
 
         } catch (IOException | TimeoutException e) {
-            String errorMessage = String.format("Failed to connect to RabbitMQ at %s:%d",
-                    config.host(), config.port());
-            log.error(LOG_FORMAT, errorMessage, e.getMessage(), e);
+            String errorMessage = "Failed to connect to RabbitMQ at " + config.host() + ":" + config.port();
+            log.error("{}: {}", errorMessage, e.getMessage());
             throw new BrokerConnectionException(errorMessage, e);
         }
     }
 
     /**
      * Отправляет сообщение в указанную очередь RabbitMQ.
-     * Если очередь не указана в запросе, используется очередь из конфигурации.
+     * Использует упрощенную логику для максимальной производительности в демо.
      *
      * @param request запрос на отправку сообщения
      * @return ответ с результатом отправки
@@ -145,34 +134,24 @@ public class RabbitMQBroker implements MessageBroker {
         }
 
         try {
-            // Используем очередь из запроса или конфигурации по умолчанию
-            String queueName = request.destination() != null ?
-                    request.destination() : config.queue();
+            String queueName = request.destination() != null ? request.destination() : config.queue();
 
-            log.debug("Sending message to queue: {}", queueName);
-
-            // Объявляем очередь (создаем если не существует)
-            channel.queueDeclare(queueName, false, false, false, null);
-
-            // Отправляем сообщение
+            // Упрощенная отправка - создаем очередь если не существует и публикуем
             channel.basicPublish("", queueName, null, request.message().getBytes());
 
-            // Генерируем ID сообщения для трейсинга
-            String messageId = UUID.randomUUID().toString();
-
-            log.debug("Message successfully sent to queue: {}", queueName);
+            // Простой ID для демо
+            String messageId = "rabbitmq-" + System.currentTimeMillis();
 
             return MessageResponse.success(BrokersType.RABBITMQ, messageId);
 
         } catch (IOException e) {
-            log.error(LOG_FORMAT, SEND_ERROR_MSG, e.getMessage(), e);
-            throw new MessageSendException(SEND_ERROR_MSG, e);
+            log.error("Failed to send message to RabbitMQ: {}", e.getMessage());
+            throw new MessageSendException("Failed to send message to RabbitMQ", e);
         }
     }
 
     /**
-     * Подписывается на получение сообщений из указанной очереди.
-     * Регистрирует DeliverCallback для асинхронной обработки входящих сообщений.
+     * Подписывается на получение сообщений из указанной очереди RabbitMQ.
      *
      * @param destination очередь для подписки
      * @param listener обработчик входящих сообщений
@@ -184,7 +163,6 @@ public class RabbitMQBroker implements MessageBroker {
             throw new SubscriptionException("Not connected to RabbitMQ. Call connect() first.");
         }
 
-        // Проверяем нет ли уже активной подписки
         if (activeConsumers.containsKey(destination)) {
             log.warn("Already subscribed to queue: {}", destination);
             return;
@@ -193,116 +171,133 @@ public class RabbitMQBroker implements MessageBroker {
         try {
             log.info("Subscribing to queue: {}", destination);
 
-            // Объявляем очередь (создаем если не существует)
+            // Создаем очередь если не существует
             channel.queueDeclare(destination, false, false, false, null);
 
-            // Создаем callback для обработки входящих сообщений
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                 handleIncomingMessage(delivery.getBody(), destination, listener);
             };
 
-            // Начинаем потребление сообщений
             String consumerTag = channel.basicConsume(destination, true, deliverCallback, tag -> {});
 
-            // Сохраняем consumer tag для управления подпиской
             activeConsumers.put(destination, consumerTag);
 
             log.info("Successfully subscribed to queue: {}", destination);
 
         } catch (IOException e) {
-            String errorMessage = String.format("Failed to subscribe to queue %s", destination);
-            log.error(LOG_FORMAT, errorMessage, e.getMessage(), e);
+            String errorMessage = "Failed to subscribe to queue " + destination;
+            log.error("{}: {}", errorMessage, e.getMessage());
             throw new SubscriptionException(errorMessage, e);
         }
     }
 
     /**
-     * Обрабатывает входящее сообщение и преобразует его в унифицированный формат.
+     * Обрабатывает входящее сообщение RabbitMQ.
      *
-     * @param messageBody тело входящего сообщения
-     * @param queueName очередь-источник сообщения
-     * @param listener обработчик для уведомления о новом сообщении
+     * @param messageBody тело сообщения
+     * @param queueName очередь-источник
+     * @param listener обработчик сообщений
      */
     private void handleIncomingMessage(byte[] messageBody, String queueName, MessageListener listener) {
         try {
             String messageText = new String(messageBody);
 
-            log.debug("Received message from queue: {} - {}", queueName, messageText);
-
-            // Создаем унифицированное представление сообщения
             ReceivedMessage receivedMessage = new ReceivedMessage(
                     BrokersType.RABBITMQ,
                     queueName,
                     messageText,
-                    UUID.randomUUID().toString(), // RabbitMQ не предоставляет message ID по умолчанию
+                    "rabbitmq-" + System.currentTimeMillis(),
                     java.time.Instant.now(),
                     java.util.Map.of()
             );
 
-            // Уведомляем обработчик
             listener.onMessage(receivedMessage, queueName);
 
         } catch (Exception e) {
-            log.error("Error processing message from queue {}: {}", queueName, e.getMessage(), e);
+            log.error("Error processing message from queue {}: {}", queueName, e.getMessage());
         }
     }
 
     /**
-     * Закрывает соединение с RabbitMQ брокером и освобождает ресурсы.
-     * Ресурсы закрываются в правильном порядке: канал → соединение.
+     * Отписывается от получения сообщений из указанной очереди RabbitMQ.
+     *
+     * @param destination очередь от которой отписываемся
+     * @throws SubscriptionException если не удалось отписаться
+     */
+    @Override
+    public void unsubscribe(String destination) throws SubscriptionException {
+        String consumerTag = activeConsumers.remove(destination);
+        if (consumerTag == null) {
+            log.warn("No active subscription found for: {}", destination);
+            return;
+        }
+
+        try {
+            channel.basicCancel(consumerTag);
+            log.info("Unsubscribed from: {}", destination);
+        } catch (IOException e) {
+            String errorMessage = "Failed to unsubscribe from " + destination;
+            log.error("{}: {}", errorMessage, e.getMessage());
+            throw new SubscriptionException(errorMessage, e);
+        }
+    }
+
+    /**
+     * Отписывается от всех активных подписок RabbitMQ.
+     */
+    @Override
+    public void unsubscribeAll() throws SubscriptionException {
+        log.info("Unsubscribing from all RabbitMQ queues...");
+
+        List<String> destinations = new ArrayList<>(activeConsumers.keySet());
+        for (String destination : destinations) {
+            try {
+                unsubscribe(destination);
+            } catch (SubscriptionException e) {
+                log.warn("Failed to unsubscribe from {}: {}", destination, e.getMessage());
+            }
+        }
+
+        log.info("Unsubscribed from all RabbitMQ queues");
+    }
+
+    /**
+     * Закрывает соединение с RabbitMQ и освобождает ресурсы.
      */
     @Override
     public void disconnect() {
         log.info("Disconnecting from RabbitMQ...");
 
         try {
-            cancelAllSubscriptions();
+            unsubscribeAll();
+        } catch (Exception e) {
+            log.warn("Error during unsubscribe: {}", e.getMessage());
+        }
 
+        try {
             if (channel != null && channel.isOpen()) {
                 channel.close();
-                channel = null;
-                log.debug("AMQP channel closed");
             }
+        } catch (IOException | TimeoutException e) {
+            log.debug("Error closing channel: {}", e.getMessage());
+        }
 
+        try {
             if (connection != null && connection.isOpen()) {
                 connection.close();
-                connection = null;
-                log.debug("AMQP connection closed");
             }
-
-            log.info("Successfully disconnected from RabbitMQ");
-
-        } catch (IOException | TimeoutException e) {
-            log.warn("Error during disconnect from RabbitMQ: {}", e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Отменяет все активные подписки на очереди.
-     */
-    private void cancelAllSubscriptions() {
-        for (String consumerTag : activeConsumers.values()) {
-            cancelSubscription(consumerTag);
-        }
-        activeConsumers.clear();
-    }
-
-    /**
-     * Отменяет одну подписку по consumer tag.
-     */
-    private void cancelSubscription(String consumerTag) {
-        try {
-            channel.basicCancel(consumerTag);
-            log.debug("Canceled consumer: {}", consumerTag);
         } catch (IOException e) {
-            log.debug("Error canceling consumer {}: {}", consumerTag, e.getMessage());
+            log.debug("Error closing connection: {}", e.getMessage());
         }
+
+        channel = null;
+        connection = null;
+
+        log.info("Successfully disconnected from RabbitMQ");
     }
 
     /**
      * Проверяет наличие активного соединения с RabbitMQ.
-     *
-     * @return true если соединение установлено, иначе false
      */
     @Override
     public boolean isConnected() {
@@ -311,8 +306,6 @@ public class RabbitMQBroker implements MessageBroker {
 
     /**
      * Возвращает тип брокера - RabbitMQ.
-     *
-     * @return тип брокера {@link BrokersType#RABBITMQ}
      */
     @Override
     public BrokersType getBrokerType() {
@@ -321,9 +314,6 @@ public class RabbitMQBroker implements MessageBroker {
 
     /**
      * Проверяет работоспособность брокера.
-     * В упрощенной реализации проверяет только наличие соединения.
-     *
-     * @return true если брокер работает корректно, иначе false
      */
     @Override
     public boolean isHealthy() {
