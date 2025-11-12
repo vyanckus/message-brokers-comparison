@@ -103,16 +103,14 @@ message-brokers-comparison/
 - Docker & Docker Compose
 
 ### 1. Клонирование репозитория
-bash
-```
+
+```bash
 git clone https://github.com/vyanckus/message-brokers-comparison.git
 cd message-brokers-comparison
 ```
 ### 2\. Запуск инфраструктуры
 
-bash
-
-```
+```bash
 cd infrastructure
 docker-compose up -d
 ```
@@ -128,9 +126,7 @@ docker-compose up -d
 
 ### 3\. Сборка и запуск приложения
 
-bash
-
-```
+```bash
 # Сборка всех модулей
 mvn clean install
 
@@ -195,9 +191,7 @@ mvn spring-boot:run
 
 ### Управление сообщениями
 
-http
-
-```
+```http
 POST   /api/messages/initialize                   # Инициализация всех брокеров
 POST   /api/messages/send                         # Отправка сообщения
 POST   /api/messages/subscribe/{brokerType}       # Подписка на сообщения
@@ -212,9 +206,7 @@ DELETE /api/messages/history                      # Очистка истори�
 
 ### Benchmark тесты
 
-http
-
-```
+```http
 POST   /api/benchmark/run                         # Синхронный benchmark тест
 POST   /api/benchmark/start-async                 # Асинхронный benchmark тест
 POST   /api/benchmark/stop/{benchmarkId}          # Остановка конкретного теста
@@ -225,9 +217,7 @@ GET    /api/benchmark/info                        # Информация о се
 
 ### Мониторинг и метрики
 
-http
-
-```
+```http
 GET    /api/metrics/brokers                      # Метрики производительности брокеров
 GET    /api/metrics/system                       # Системные метрики JVM
 GET    /actuator/health                          # Health checks (Spring Actuator)
@@ -237,9 +227,7 @@ GET    /actuator/info                            # Информация о пр�
 
 ### WebSocket Endpoints
 
-http
-
-```
+```http
 WS     /ws                                      # WebSocket endpoint
 POST   /app/websocket/control                   # Управление генератором данных
 POST   /app/websocket/chart                     # Запрос данных для графиков
@@ -262,9 +250,8 @@ SUB    /topic/statistics                        # Статистика брок�
 
 Проект содержит полную Javadoc документацию для всех основных компонентов:
 
-bash
 
-```
+```bash
 # Генерация документации для всего проекта
 mvn javadoc:aggregate
 
@@ -294,14 +281,12 @@ mvn javadoc:aggregate
 *   Описание архитектурных решений и паттернов
 
 
-🐛 Troubleshooting
-------------------
+## 🐛 Troubleshooting
 
 ### Проблемы с подключением к брокерам
 
-bash
 
-```
+```bash
 # Проверка статуса контейнеров
 docker ps
 
@@ -322,9 +307,8 @@ docker logs kafka
 
 ### Проблемы со сборкой
 
-bash
 
-```
+```bash
 # Очистка проекта
 mvn clean
 
@@ -335,9 +319,12 @@ mvn dependency:resolve
 java -version
 ```
 
+## 📄 Лицензия
 
-👨‍💻 Автор
------------
+Этот проект распространяется под лицензией MIT. Подробнее см. в файле [LICENSE](LICENSE).
+
+
+## 👨‍💻 Автор
 
 Фёдор Вянцкус
 
